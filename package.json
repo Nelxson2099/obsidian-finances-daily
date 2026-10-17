@@ -13,5 +13,8 @@
     "productivity"
   ],
   "author": "Nelxson2099",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "obsidian": "^1.5.0"
+  }
 }
