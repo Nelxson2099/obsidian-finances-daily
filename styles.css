@@ -1,0 +1,587 @@
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FINANCES DAILY - RUEDA DE GASTOS (Obsidian Extension Style)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.finances-daily-view {
+  padding: 0;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+}
+
+.fd-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 60px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header */
+.fd-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.fd-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fd-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(99, 102, 241, 0.2));
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.15);
+}
+
+.fd-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-normal);
+}
+
+.fd-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Filter Tabs */
+.fd-filter-tabs {
+  display: inline-flex;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.fd-tab-btn {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fd-tab-btn:hover {
+  color: var(--text-normal);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fd-tab-btn.active {
+  background: var(--interactive-accent);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* KPI Banner */
+.fd-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.fd-kpi-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.fd-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.fd-kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.fd-kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+}
+
+.fd-kpi-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Quick Capture Card */
+.fd-capture-box {
+  background: linear-gradient(180deg, var(--background-secondary), var(--background-primary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fd-capture-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fd-capture-inputs {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 12px;
+}
+
+@media (max-width: 680px) {
+  .fd-capture-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fd-input {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-normal);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.fd-input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.fd-amount-input {
+  font-family: var(--font-monospace);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* Category Pill Selector */
+.fd-category-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fd-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.fd-cat-pill:hover {
+  color: var(--text-normal);
+  transform: translateY(-1px);
+}
+
+.fd-cat-pill.selected {
+  color: #FFFFFF !important;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transform: scale(1.03);
+}
+
+.fd-submit-btn {
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+}
+
+.fd-submit-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.fd-submit-btn:active {
+  transform: translateY(0);
+}
+
+/* Main Wheel & Quadrants Layout */
+.fd-wheel-layout {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 950px) {
+  .fd-wheel-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Interactive SVG Wheel */
+.fd-wheel-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.fd-svg-wheel {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.25));
+}
+
+.fd-slice {
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.fd-slice:hover {
+  opacity: 1 !important;
+  filter: brightness(1.2);
+}
+
+.fd-wheel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.fd-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.fd-legend-item:hover, .fd-legend-item.active {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.fd-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Quadrants Cards Grid */
+.fd-quadrant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.fd-quad-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.fd-quad-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.fd-quad-card.active-filter {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+.fd-quad-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fd-quad-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fd-quad-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.fd-quad-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.fd-quad-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.fd-quad-amount {
+  font-size: 15px;
+  font-weight: 800;
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+}
+
+.fd-progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: var(--background-primary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.fd-progress-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.fd-quad-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Ledger / History */
+.fd-ledger-box {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fd-ledger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.fd-ledger-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fd-search-input {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-normal);
+  outline: none;
+  min-width: 220px;
+}
+
+.fd-ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.fd-ledger-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.fd-ledger-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--background-modifier-hover);
+}
+
+.fd-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fd-item-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.fd-item-concept {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.fd-item-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+}
+
+.fd-item-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fd-item-amount {
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+}
+
+.fd-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.fd-delete-btn:hover {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.fd-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Quick Expense Modal */
+.fd-modal {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fd-modal-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-normal);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

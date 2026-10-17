@@ -1,0 +1,17 @@
+{
+  "name": "obsidian-finances-daily",
+  "version": "1.0.0",
+  "description": "Finances Daily for Obsidian - Wheel of Life Expense Tracker across 8 Core Life Dimensions",
+  "main": "main.js",
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "finances",
+    "expense-tracker",
+    "wheel-of-life",
+    "budget",
+    "productivity"
+  ],
+  "author": "Nelxson2099",
+  "license": "MIT"
+}
