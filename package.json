@@ -1,6 +1,6 @@
 {
   "name": "obsidian-finances-daily",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Finances Daily for Obsidian - Wheel of Life Expense Tracker across 8 Core Life Dimensions",
   "main": "main.js",
   "keywords": [
@@ -15,9 +15,10 @@
   "author": "Nelxson2099",
   "license": "MIT",
   "devDependencies": {
+    "esbuild": "^0.21.0",
     "obsidian": "^1.5.0"
   },
   "scripts": {
-    "build": "node -e \"console.log('Build complete')\""
+    "build": "node esbuild.config.mjs production"
   }
 }
