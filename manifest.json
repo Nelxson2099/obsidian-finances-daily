@@ -1,7 +1,7 @@
 {
   "id": "finances-daily",
   "name": "Finances Daily",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "0.15.0",
   "description": "Visualize and balance your finances with an interactive 8-dimension Wheel of Life expense tracker synced to your notes.",
   "author": "Nelxson2099",
