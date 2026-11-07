@@ -9,15 +9,110 @@ const obsidian = require('obsidian');
 
 const VIEW_TYPE_FINANCES_DAILY = 'finances-daily-wheel-view';
 
+// ─── i18n LOCALIZATION ENGINE (EN / ES) ───
+const USER_LOCALE = (typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('language') || 'en').toLowerCase();
+const IS_ES = USER_LOCALE.startsWith('es');
+
+const I18N = {
+  en: {
+    pluginTitle: 'Finances Daily - 8-Dimension Expense Wheel & Savings Vault',
+    openCommand: 'Open Finances Daily Dashboard',
+    catSalud: 'Health',
+    catSaludDesc: 'Physical care, medicine, nutrition',
+    catOcio: 'Leisure',
+    catOcioDesc: 'Gaming, entertainment, shows, outings',
+    catDesarrollo: 'Personal Growth',
+    catDesarrolloDesc: 'Mindset, courses, books, workout',
+    catProfesion: 'Profession',
+    catProfesionDesc: 'Work equipment, tools, software',
+    catAmor: 'Love',
+    catAmorDesc: 'Partner, romantic dates, gifts',
+    catAmigos: 'Friends',
+    catAmigosDesc: 'Gatherings, meetups, drinks, social',
+    catFamilia: 'Family',
+    catFamiliaDesc: 'Household, groceries, family support',
+    catFinanzas: 'Finances',
+    catFinanzasDesc: 'Savings, investments, funds, assets',
+    subtitleWheel: '8-Dimension Life Expense Wheel & Savings Vault',
+    filterToday: 'Today',
+    filterWeek: 'This Week',
+    filterMonth: 'This Month',
+    filterAll: 'All',
+    totalSpent: 'Total Spent',
+    recordsCount: 'Transactions',
+    topCategory: 'Top Category',
+    budgetMonthly: 'Monthly Budget',
+    budgetUsed: 'Budget Used',
+    addExpenseBtn: '+ New Expense',
+    addSavingsBtn: '+ Deposit to Savings',
+    withdrawSavingsBtn: '- Withdraw Savings',
+    newWishBtn: '+ Add to Wishlist',
+    historyTitle: 'Transaction History',
+    wishlistTitle: 'Wishlist & Goals',
+    savingsVaultTitle: 'Savings Vault',
+    balanceLabel: 'Current Balance',
+    goalLabel: 'Savings Goal',
+    saveBtn: 'Save',
+    cancelBtn: 'Cancel',
+    deleteBtn: 'Delete'
+  },
+  es: {
+    pluginTitle: 'Finances Daily - Rueda de Gastos de 8 Dimensiones & Caja de Ahorros',
+    openCommand: 'Abrir Dashboard de Rueda de Gastos & Finanzas',
+    catSalud: 'Salud',
+    catSaludDesc: 'Cuidado físico, medicina, nutrición',
+    catOcio: 'Ocio',
+    catOcioDesc: 'Diversión, videojuegos, series, salidas',
+    catDesarrollo: 'Desarrollo Personal',
+    catDesarrolloDesc: 'Crecimiento mental, cursos, libros, gym',
+    catProfesion: 'Profesión',
+    catProfesionDesc: 'Herramientas laborales, equipos, software',
+    catAmor: 'Amor',
+    catAmorDesc: 'Pareja, citas románticas, detalles',
+    catAmigos: 'Amigos',
+    catAmigosDesc: 'Salidas, reuniones, tragos, compartir',
+    catFamilia: 'Familia',
+    catFamiliaDesc: 'Hogar, compras para la casa, apoyo familiar',
+    catFinanzas: 'Finanzas',
+    catFinanzasDesc: 'Ahorro, inversiones, fondos, activos',
+    subtitleWheel: 'Rueda de Gastos de 8 Dimensiones de Vida & Caja de Ahorros',
+    filterToday: 'Hoy',
+    filterWeek: 'Esta Semana',
+    filterMonth: 'Este Mes',
+    filterAll: 'Todo',
+    totalSpent: 'Gasto Total',
+    recordsCount: 'Movimientos',
+    topCategory: 'Top Categoría',
+    budgetMonthly: 'Presupuesto Mensual',
+    budgetUsed: 'Presupuesto Utilizado',
+    addExpenseBtn: '+ Nuevo Gasto',
+    addSavingsBtn: '+ Depositar Ahorro',
+    withdrawSavingsBtn: '- Retirar Ahorro',
+    newWishBtn: '+ Agregar a Lista de Deseos',
+    historyTitle: 'Historial de Gastos',
+    wishlistTitle: 'Lista de Deseos & Metas',
+    savingsVaultTitle: 'Caja de Ahorros',
+    balanceLabel: 'Balance Actual',
+    goalLabel: 'Meta de Ahorro',
+    saveBtn: 'Guardar',
+    cancelBtn: 'Cancelar',
+    deleteBtn: 'Eliminar'
+  }
+};
+
+function t(key, fallback = '') {
+  return (IS_ES ? I18N.es[key] : I18N.en[key]) || I18N.en[key] || fallback || key;
+}
+
 const CATEGORIES = [
-  { id: 'salud', name: 'Salud', icon: '🩺', color: '#10B981', headerTag: '### - SALUD', desc: 'Cuidado físico, medicina, nutrición' },
-  { id: 'ocio', name: 'Ocio', icon: '🎮', color: '#8B5CF6', headerTag: '### - OCIO', desc: 'Diversión, videojuegos, series, salidas' },
-  { id: 'desarrollo', name: 'Desarrollo Personal', icon: '🧠', color: '#3B82F6', headerTag: '### - DESARROLLO PERSONAL / FUERA DE CONFORT', desc: 'Crecimiento mental, cursos, libros, gym' },
-  { id: 'profesion', name: 'Profesión', icon: '💼', color: '#6366F1', headerTag: '### - PROFESION', desc: 'Herramientas laborales, equipos, software' },
-  { id: 'amor', name: 'Amor', icon: '❤️', color: '#EC4899', headerTag: '### - AMOR', desc: 'Pareja, citas románticas, detalles' },
-  { id: 'amigos', name: 'Amigos', icon: '👥', color: '#F59E0B', headerTag: '### - AMIGOS', desc: 'Salidas, reuniones, tragos, compartir' },
-  { id: 'familia', name: 'Familia', icon: '🏡', color: '#EF4444', headerTag: '### - FAMILIA', desc: 'Hogar, compras para la casa, apoyo familiar' },
-  { id: 'finanzas', name: 'Finanzas', icon: '💰', color: '#14B8A6', headerTag: '### - FINANZAS', desc: 'Ahorro, inversiones, fondos, activos' }
+  { id: 'salud', get name() { return t('catSalud'); }, icon: '🩺', color: '#10B981', headerTag: '### - SALUD', get desc() { return t('catSaludDesc'); } },
+  { id: 'ocio', get name() { return t('catOcio'); }, icon: '🎮', color: '#8B5CF6', headerTag: '### - OCIO', get desc() { return t('catOcioDesc'); } },
+  { id: 'desarrollo', get name() { return t('catDesarrollo'); }, icon: '🧠', color: '#3B82F6', headerTag: '### - DESARROLLO PERSONAL / FUERA DE CONFORT', get desc() { return t('catDesarrolloDesc'); } },
+  { id: 'profesion', get name() { return t('catProfesion'); }, icon: '💼', color: '#6366F1', headerTag: '### - PROFESION', get desc() { return t('catProfesionDesc'); } },
+  { id: 'amor', get name() { return t('catAmor'); }, icon: '❤️', color: '#EC4899', headerTag: '### - AMOR', get desc() { return t('catAmorDesc'); } },
+  { id: 'amigos', get name() { return t('catAmigos'); }, icon: '👥', color: '#F59E0B', headerTag: '### - AMIGOS', get desc() { return t('catAmigosDesc'); } },
+  { id: 'familia', get name() { return t('catFamilia'); }, icon: '🏡', color: '#EF4444', headerTag: '### - FAMILIA', get desc() { return t('catFamiliaDesc'); } },
+  { id: 'finanzas', get name() { return t('catFinanzas'); }, icon: '💰', color: '#14B8A6', headerTag: '### - FINANZAS', get desc() { return t('catFinanzasDesc'); } }
 ];
 
 const DEFAULT_SETTINGS = {
@@ -615,17 +710,17 @@ class FinancesDailyView extends obsidian.ItemView {
     title.setText('Finances Daily');
 
     const subtitle = textWrap.createEl('p', { cls: 'fd-subtitle' });
-    subtitle.setText('Rueda de Gastos de 8 Dimensiones de Vida & Caja de Ahorros');
+    subtitle.setText(t('subtitleWheel'));
 
     // Filter Tabs
     const actions = header.createDiv({ cls: 'fd-header-actions' });
     const tabs = actions.createDiv({ cls: 'fd-filter-tabs' });
 
     const filterOptions = [
-      { key: 'hoy', label: 'Hoy' },
-      { key: 'semana', label: 'Esta Semana' },
-      { key: 'mes', label: 'Este Mes' },
-      { key: 'todo', label: 'Todo' }
+      { key: 'hoy', label: t('filterToday') },
+      { key: 'semana', label: t('filterWeek') },
+      { key: 'mes', label: t('filterMonth') },
+      { key: 'todo', label: t('filterAll') }
     ];
 
     filterOptions.forEach(opt => {

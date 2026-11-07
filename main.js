@@ -9,15 +9,138 @@ Author: Nelxson2099
 // src/main.js
 var obsidian = require("obsidian");
 var VIEW_TYPE_FINANCES_DAILY = "finances-daily-wheel-view";
+var USER_LOCALE = (typeof window !== "undefined" && window.localStorage && window.localStorage.getItem("language") || "en").toLowerCase();
+var IS_ES = USER_LOCALE.startsWith("es");
+var I18N = {
+  en: {
+    pluginTitle: "Finances Daily - 8-Dimension Expense Wheel & Savings Vault",
+    openCommand: "Open Finances Daily Dashboard",
+    catSalud: "Health",
+    catSaludDesc: "Physical care, medicine, nutrition",
+    catOcio: "Leisure",
+    catOcioDesc: "Gaming, entertainment, shows, outings",
+    catDesarrollo: "Personal Growth",
+    catDesarrolloDesc: "Mindset, courses, books, workout",
+    catProfesion: "Profession",
+    catProfesionDesc: "Work equipment, tools, software",
+    catAmor: "Love",
+    catAmorDesc: "Partner, romantic dates, gifts",
+    catAmigos: "Friends",
+    catAmigosDesc: "Gatherings, meetups, drinks, social",
+    catFamilia: "Family",
+    catFamiliaDesc: "Household, groceries, family support",
+    catFinanzas: "Finances",
+    catFinanzasDesc: "Savings, investments, funds, assets",
+    subtitleWheel: "8-Dimension Life Expense Wheel & Savings Vault",
+    filterToday: "Today",
+    filterWeek: "This Week",
+    filterMonth: "This Month",
+    filterAll: "All",
+    totalSpent: "Total Spent",
+    recordsCount: "Transactions",
+    topCategory: "Top Category",
+    budgetMonthly: "Monthly Budget",
+    budgetUsed: "Budget Used",
+    addExpenseBtn: "+ New Expense",
+    addSavingsBtn: "+ Deposit to Savings",
+    withdrawSavingsBtn: "- Withdraw Savings",
+    newWishBtn: "+ Add to Wishlist",
+    historyTitle: "Transaction History",
+    wishlistTitle: "Wishlist & Goals",
+    savingsVaultTitle: "Savings Vault",
+    balanceLabel: "Current Balance",
+    goalLabel: "Savings Goal",
+    saveBtn: "Save",
+    cancelBtn: "Cancel",
+    deleteBtn: "Delete"
+  },
+  es: {
+    pluginTitle: "Finances Daily - Rueda de Gastos de 8 Dimensiones & Caja de Ahorros",
+    openCommand: "Abrir Dashboard de Rueda de Gastos & Finanzas",
+    catSalud: "Salud",
+    catSaludDesc: "Cuidado f\xEDsico, medicina, nutrici\xF3n",
+    catOcio: "Ocio",
+    catOcioDesc: "Diversi\xF3n, videojuegos, series, salidas",
+    catDesarrollo: "Desarrollo Personal",
+    catDesarrolloDesc: "Crecimiento mental, cursos, libros, gym",
+    catProfesion: "Profesi\xF3n",
+    catProfesionDesc: "Herramientas laborales, equipos, software",
+    catAmor: "Amor",
+    catAmorDesc: "Pareja, citas rom\xE1nticas, detalles",
+    catAmigos: "Amigos",
+    catAmigosDesc: "Salidas, reuniones, tragos, compartir",
+    catFamilia: "Familia",
+    catFamiliaDesc: "Hogar, compras para la casa, apoyo familiar",
+    catFinanzas: "Finanzas",
+    catFinanzasDesc: "Ahorro, inversiones, fondos, activos",
+    subtitleWheel: "Rueda de Gastos de 8 Dimensiones de Vida & Caja de Ahorros",
+    filterToday: "Hoy",
+    filterWeek: "Esta Semana",
+    filterMonth: "Este Mes",
+    filterAll: "Todo",
+    totalSpent: "Gasto Total",
+    recordsCount: "Movimientos",
+    topCategory: "Top Categor\xEDa",
+    budgetMonthly: "Presupuesto Mensual",
+    budgetUsed: "Presupuesto Utilizado",
+    addExpenseBtn: "+ Nuevo Gasto",
+    addSavingsBtn: "+ Depositar Ahorro",
+    withdrawSavingsBtn: "- Retirar Ahorro",
+    newWishBtn: "+ Agregar a Lista de Deseos",
+    historyTitle: "Historial de Gastos",
+    wishlistTitle: "Lista de Deseos & Metas",
+    savingsVaultTitle: "Caja de Ahorros",
+    balanceLabel: "Balance Actual",
+    goalLabel: "Meta de Ahorro",
+    saveBtn: "Guardar",
+    cancelBtn: "Cancelar",
+    deleteBtn: "Eliminar"
+  }
+};
+function t(key, fallback = "") {
+  return (IS_ES ? I18N.es[key] : I18N.en[key]) || I18N.en[key] || fallback || key;
+}
 var CATEGORIES = [
-  { id: "salud", name: "Salud", icon: "\u{1FA7A}", color: "#10B981", headerTag: "### - SALUD", desc: "Cuidado f\xEDsico, medicina, nutrici\xF3n" },
-  { id: "ocio", name: "Ocio", icon: "\u{1F3AE}", color: "#8B5CF6", headerTag: "### - OCIO", desc: "Diversi\xF3n, videojuegos, series, salidas" },
-  { id: "desarrollo", name: "Desarrollo Personal", icon: "\u{1F9E0}", color: "#3B82F6", headerTag: "### - DESARROLLO PERSONAL / FUERA DE CONFORT", desc: "Crecimiento mental, cursos, libros, gym" },
-  { id: "profesion", name: "Profesi\xF3n", icon: "\u{1F4BC}", color: "#6366F1", headerTag: "### - PROFESION", desc: "Herramientas laborales, equipos, software" },
-  { id: "amor", name: "Amor", icon: "\u2764\uFE0F", color: "#EC4899", headerTag: "### - AMOR", desc: "Pareja, citas rom\xE1nticas, detalles" },
-  { id: "amigos", name: "Amigos", icon: "\u{1F465}", color: "#F59E0B", headerTag: "### - AMIGOS", desc: "Salidas, reuniones, tragos, compartir" },
-  { id: "familia", name: "Familia", icon: "\u{1F3E1}", color: "#EF4444", headerTag: "### - FAMILIA", desc: "Hogar, compras para la casa, apoyo familiar" },
-  { id: "finanzas", name: "Finanzas", icon: "\u{1F4B0}", color: "#14B8A6", headerTag: "### - FINANZAS", desc: "Ahorro, inversiones, fondos, activos" }
+  { id: "salud", get name() {
+    return t("catSalud");
+  }, icon: "\u{1FA7A}", color: "#10B981", headerTag: "### - SALUD", get desc() {
+    return t("catSaludDesc");
+  } },
+  { id: "ocio", get name() {
+    return t("catOcio");
+  }, icon: "\u{1F3AE}", color: "#8B5CF6", headerTag: "### - OCIO", get desc() {
+    return t("catOcioDesc");
+  } },
+  { id: "desarrollo", get name() {
+    return t("catDesarrollo");
+  }, icon: "\u{1F9E0}", color: "#3B82F6", headerTag: "### - DESARROLLO PERSONAL / FUERA DE CONFORT", get desc() {
+    return t("catDesarrolloDesc");
+  } },
+  { id: "profesion", get name() {
+    return t("catProfesion");
+  }, icon: "\u{1F4BC}", color: "#6366F1", headerTag: "### - PROFESION", get desc() {
+    return t("catProfesionDesc");
+  } },
+  { id: "amor", get name() {
+    return t("catAmor");
+  }, icon: "\u2764\uFE0F", color: "#EC4899", headerTag: "### - AMOR", get desc() {
+    return t("catAmorDesc");
+  } },
+  { id: "amigos", get name() {
+    return t("catAmigos");
+  }, icon: "\u{1F465}", color: "#F59E0B", headerTag: "### - AMIGOS", get desc() {
+    return t("catAmigosDesc");
+  } },
+  { id: "familia", get name() {
+    return t("catFamilia");
+  }, icon: "\u{1F3E1}", color: "#EF4444", headerTag: "### - FAMILIA", get desc() {
+    return t("catFamiliaDesc");
+  } },
+  { id: "finanzas", get name() {
+    return t("catFinanzas");
+  }, icon: "\u{1F4B0}", color: "#14B8A6", headerTag: "### - FINANZAS", get desc() {
+    return t("catFinanzasDesc");
+  } }
 ];
 var DEFAULT_SETTINGS = {
   currency: "$",
@@ -159,7 +282,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
       linkedWish.boughtDate = null;
       linkedWish.txId = null;
     }
-    this.settings.transactions = this.settings.transactions.filter((t) => t.id !== id);
+    this.settings.transactions = this.settings.transactions.filter((t2) => t2.id !== id);
     await this.saveSettings();
     new obsidian.Notice("\u{1F5D1}\uFE0F Gasto eliminado correctamente");
   }
@@ -229,7 +352,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
       new obsidian.Notice(`\u2705 "${item.concept}" comprado: \xA1Pas\xF3 a la cola de gastos general en ${cat.icon} ${cat.name}!`);
     } else {
       this.settings.transactions = this.settings.transactions.filter(
-        (t) => t.id !== item.txId && t.wishlistId !== item.id
+        (t2) => t2.id !== item.txId && t2.wishlistId !== item.id
       );
       item.bought = false;
       item.boughtDate = null;
@@ -242,7 +365,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     const item = (this.settings.wishlist || []).find((w) => w.id === id);
     if (item && item.bought) {
       this.settings.transactions = this.settings.transactions.filter(
-        (t) => t.id !== item.txId && t.wishlistId !== item.id
+        (t2) => t2.id !== item.txId && t2.wishlistId !== item.id
       );
     }
     this.settings.wishlist = (this.settings.wishlist || []).filter((w) => w.id !== id);
@@ -494,14 +617,14 @@ var FinancesDailyView = class extends obsidian.ItemView {
     const title = textWrap.createEl("h2", { cls: "fd-title" });
     title.setText("Finances Daily");
     const subtitle = textWrap.createEl("p", { cls: "fd-subtitle" });
-    subtitle.setText("Rueda de Gastos de 8 Dimensiones de Vida & Caja de Ahorros");
+    subtitle.setText(t("subtitleWheel"));
     const actions = header.createDiv({ cls: "fd-header-actions" });
     const tabs = actions.createDiv({ cls: "fd-filter-tabs" });
     const filterOptions = [
-      { key: "hoy", label: "Hoy" },
-      { key: "semana", label: "Esta Semana" },
-      { key: "mes", label: "Este Mes" },
-      { key: "todo", label: "Todo" }
+      { key: "hoy", label: t("filterToday") },
+      { key: "semana", label: t("filterWeek") },
+      { key: "mes", label: t("filterMonth") },
+      { key: "todo", label: t("filterAll") }
     ];
     filterOptions.forEach((opt) => {
       const btn = tabs.createEl("button", {
@@ -516,12 +639,12 @@ var FinancesDailyView = class extends obsidian.ItemView {
   }
   renderKPIs(parent, txs) {
     const kpiGrid = parent.createDiv({ cls: "fd-kpi-grid" });
-    const total = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const total = txs.reduce((sum, t2) => sum + (Number(t2.amount) || 0), 0);
     const count = txs.length;
     const totalsByCat = {};
     CATEGORIES.forEach((c) => totalsByCat[c.id] = 0);
-    txs.forEach((t) => {
-      totalsByCat[t.categoryId] = (totalsByCat[t.categoryId] || 0) + Number(t.amount);
+    txs.forEach((t2) => {
+      totalsByCat[t2.categoryId] = (totalsByCat[t2.categoryId] || 0) + Number(t2.amount);
     });
     let topCatId = null;
     let maxSpent = -1;
@@ -749,10 +872,10 @@ var FinancesDailyView = class extends obsidian.ItemView {
     const card = parent.createDiv({ cls: "fd-wheel-card" });
     const totals = {};
     CATEGORIES.forEach((c) => totals[c.id] = 0);
-    txs.forEach((t) => {
-      totals[t.categoryId] = (totals[t.categoryId] || 0) + Number(t.amount);
+    txs.forEach((t2) => {
+      totals[t2.categoryId] = (totals[t2.categoryId] || 0) + Number(t2.amount);
     });
-    const grandTotal = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const grandTotal = txs.reduce((sum, t2) => sum + (Number(t2.amount) || 0), 0);
     const maxVal = Math.max(...Object.values(totals), 1);
     const size = 380;
     const cx = size / 2;
@@ -874,11 +997,11 @@ var FinancesDailyView = class extends obsidian.ItemView {
     CATEGORIES.forEach((c) => totals[c.id] = 0);
     const counts = {};
     CATEGORIES.forEach((c) => counts[c.id] = 0);
-    txs.forEach((t) => {
-      totals[t.categoryId] = (totals[t.categoryId] || 0) + Number(t.amount);
-      counts[t.categoryId] = (counts[t.categoryId] || 0) + 1;
+    txs.forEach((t2) => {
+      totals[t2.categoryId] = (totals[t2.categoryId] || 0) + Number(t2.amount);
+      counts[t2.categoryId] = (counts[t2.categoryId] || 0) + 1;
     });
-    const grandTotal = txs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const grandTotal = txs.reduce((sum, t2) => sum + (Number(t2.amount) || 0), 0);
     CATEGORIES.forEach((c) => {
       const spent = totals[c.id] || 0;
       const count = counts[c.id] || 0;
@@ -1175,12 +1298,12 @@ var FinancesDailyView = class extends obsidian.ItemView {
     parent.empty();
     let displayList = [...txs];
     if (this.selectedCatFilter) {
-      displayList = displayList.filter((t) => t.categoryId === this.selectedCatFilter);
+      displayList = displayList.filter((t2) => t2.categoryId === this.selectedCatFilter);
     }
     if (this.searchQuery.trim()) {
       const q = this.searchQuery.toLowerCase();
       displayList = displayList.filter(
-        (t) => t.concept && t.concept.toLowerCase().includes(q) || t.categoryName && t.categoryName.toLowerCase().includes(q) || String(t.amount).includes(q)
+        (t2) => t2.concept && t2.concept.toLowerCase().includes(q) || t2.categoryName && t2.categoryName.toLowerCase().includes(q) || String(t2.amount).includes(q)
       );
     }
     if (displayList.length === 0) {
@@ -1223,15 +1346,15 @@ var FinancesDailyView = class extends obsidian.ItemView {
     const now = /* @__PURE__ */ new Date();
     const todayStr = now.toISOString().split("T")[0];
     if (this.currentFilter === "hoy") {
-      return list.filter((t) => t.date === todayStr);
+      return list.filter((t2) => t2.date === todayStr);
     }
     if (this.currentFilter === "semana") {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1e3);
-      return list.filter((t) => new Date(t.date) >= sevenDaysAgo);
+      return list.filter((t2) => new Date(t2.date) >= sevenDaysAgo);
     }
     if (this.currentFilter === "mes") {
       const currentYearMonth = todayStr.substring(0, 7);
-      return list.filter((t) => (t.date || "").startsWith(currentYearMonth));
+      return list.filter((t2) => (t2.date || "").startsWith(currentYearMonth));
     }
     return list;
   }
@@ -1619,7 +1742,7 @@ var FinancesDailySettingTab = class extends obsidian.PluginSettingTab {
       const wishes = this.plugin.settings.wishlist || [];
       const headers = ["Tipo", "ID", "Fecha", "Hora", "Categoria", "Concepto", "Monto", "Estado"];
       const rows = [
-        ...txs.map((t) => ["GASTO", t.id, t.date, t.time, t.categoryName, `"${t.concept}"`, t.amount, "PAGADO"]),
+        ...txs.map((t2) => ["GASTO", t2.id, t2.date, t2.time, t2.categoryName, `"${t2.concept}"`, t2.amount, "PAGADO"]),
         ...wishes.map((w) => ["DESEO", w.id, w.createdDate, "", w.categoryName, `"${w.concept}"`, w.amount, w.bought ? "COMPRADO_EN_RUEDA" : "PENDIENTE"])
       ];
       const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
