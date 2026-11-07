@@ -24,7 +24,15 @@ var DEFAULT_SETTINGS = {
   monthlyBudget: 0,
   syncWithNote: true,
   syncNotePath: "DIARIO DE RUEDA.md",
-  transactions: []
+  transactions: [],
+  wishlist: [],
+  wishlistSort: "desc",
+  // 'desc' (más caro) | 'asc' (más barato) | 'recent' | 'category'
+  wishlistFilter: "all",
+  // 'all' | 'pending' | 'bought'
+  savingsBalance: 0,
+  savingsGoal: 0,
+  savingsHistory: []
 };
 var FinancesDailyPlugin = class extends obsidian.Plugin {
   async onload() {
@@ -38,7 +46,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     });
     this.addCommand({
       id: "open-wheel",
-      name: "Abrir Rueda de Gastos",
+      name: "Abrir Rueda de Gastos & Finanzas",
       callback: () => {
         this.activateView();
       }
@@ -50,8 +58,22 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
         new QuickExpenseModal(this.app, this).open();
       }
     });
+    this.addCommand({
+      id: "quick-add-wishlist",
+      name: "Agregar Deseo a Wishlist (8 Cuadrantes)",
+      callback: () => {
+        new QuickWishlistModal(this.app, this).open();
+      }
+    });
+    this.addCommand({
+      id: "manage-savings",
+      name: "Gestionar Caja de Ahorros",
+      callback: () => {
+        new SavingsDepositModal(this.app, this).open();
+      }
+    });
     this.addSettingTab(new FinancesDailySettingTab(this.app, this));
-    console.log("Finances Daily - Rueda de Gastos plugin cargado con \xE9xito");
+    console.log("Finances Daily - Rueda de Gastos & Caja de Ahorros cargado con \xE9xito");
   }
   onunload() {
     console.log("Finances Daily descargado");
@@ -60,6 +82,24 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     if (!Array.isArray(this.settings.transactions)) {
       this.settings.transactions = [];
+    }
+    if (!Array.isArray(this.settings.wishlist)) {
+      this.settings.wishlist = [];
+    }
+    if (!Array.isArray(this.settings.savingsHistory)) {
+      this.settings.savingsHistory = [];
+    }
+    if (typeof this.settings.savingsBalance !== "number") {
+      this.settings.savingsBalance = 0;
+    }
+    if (typeof this.settings.savingsGoal !== "number") {
+      this.settings.savingsGoal = 0;
+    }
+    if (!this.settings.wishlistSort) {
+      this.settings.wishlistSort = "desc";
+    }
+    if (!this.settings.wishlistFilter) {
+      this.settings.wishlistFilter = "all";
     }
   }
   async saveSettings() {
@@ -77,6 +117,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     }
     workspace.revealLeaf(leaf);
   }
+  // ─── GASTOS METHODS ───────────────────────────────────────────────────────
   async addExpense({ amount, concept, categoryId, date, time }) {
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -112,9 +153,263 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     return true;
   }
   async deleteExpense(id) {
+    const linkedWish = (this.settings.wishlist || []).find((w) => w.txId === id);
+    if (linkedWish) {
+      linkedWish.bought = false;
+      linkedWish.boughtDate = null;
+      linkedWish.txId = null;
+    }
     this.settings.transactions = this.settings.transactions.filter((t) => t.id !== id);
     await this.saveSettings();
     new obsidian.Notice("\u{1F5D1}\uFE0F Gasto eliminado correctamente");
+  }
+  // ─── WISHLIST METHODS (VINCULADA A LOS 8 CUADRANTES) ──────────────────────
+  async addWishlistItem({ amount, concept, categoryId }) {
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      new obsidian.Notice("\u274C Por favor ingresa un precio o monto estimado v\xE1lido");
+      return false;
+    }
+    if (!concept || !concept.trim()) {
+      new obsidian.Notice("\u274C Por favor escribe qu\xE9 te quieres comprar");
+      return false;
+    }
+    const cat = CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
+    const now = /* @__PURE__ */ new Date();
+    const newItem = {
+      id: "wish_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+      concept: concept.trim(),
+      amount: parsedAmount,
+      categoryId: cat.id,
+      categoryName: cat.name,
+      categoryIcon: cat.icon,
+      categoryColor: cat.color,
+      bought: false,
+      boughtDate: null,
+      txId: null,
+      createdAt: Date.now(),
+      createdDate: now.toISOString().split("T")[0]
+    };
+    this.settings.wishlist.unshift(newItem);
+    await this.saveSettings();
+    new obsidian.Notice(`\u{1F3AF} "${newItem.concept}" agregado a la Wishlist en ${cat.icon} ${cat.name}`);
+    return newItem;
+  }
+  async toggleWishlistItem(id) {
+    const item = (this.settings.wishlist || []).find((w) => w.id === id);
+    if (!item) return;
+    const cat = CATEGORIES.find((c) => c.id === item.categoryId) || CATEGORIES[0];
+    const now = /* @__PURE__ */ new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (!item.bought) {
+      const txId = "tx_wish_" + item.id;
+      const newTx = {
+        id: txId,
+        amount: Number(item.amount),
+        concept: item.concept,
+        categoryId: cat.id,
+        categoryName: cat.name,
+        categoryIcon: cat.icon,
+        categoryColor: cat.color,
+        date: todayStr,
+        time: timeStr,
+        timestamp: Date.now(),
+        isFromWishlist: true,
+        wishlistId: item.id
+      };
+      this.settings.transactions.unshift(newTx);
+      item.bought = true;
+      item.boughtDate = todayStr;
+      item.txId = txId;
+      await this.saveSettings();
+      if (this.settings.syncWithNote && this.settings.syncNotePath) {
+        await this.syncToMarkdownNote(newTx, cat);
+      }
+      new obsidian.Notice(`\u2705 "${item.concept}" comprado: \xA1Sumado a la Rueda de Gastos en ${cat.icon} ${cat.name}!`);
+    } else {
+      this.settings.transactions = this.settings.transactions.filter(
+        (t) => t.id !== item.txId && t.wishlistId !== item.id
+      );
+      item.bought = false;
+      item.boughtDate = null;
+      item.txId = null;
+      await this.saveSettings();
+      new obsidian.Notice(`\u21A9\uFE0F "${item.concept}" desmarcado: Descontado de la Rueda de Gastos`);
+    }
+  }
+  async deleteWishlistItem(id) {
+    const item = (this.settings.wishlist || []).find((w) => w.id === id);
+    if (item && item.bought) {
+      this.settings.transactions = this.settings.transactions.filter(
+        (t) => t.id !== item.txId && t.wishlistId !== item.id
+      );
+    }
+    this.settings.wishlist = (this.settings.wishlist || []).filter((w) => w.id !== id);
+    await this.saveSettings();
+    new obsidian.Notice("\u{1F5D1}\uFE0F Art\xEDculo eliminado de la Wishlist");
+  }
+  // ─── CAJA DE AHORROS METHODS ─────────────────────────────────────────────
+  async depositSavings({ amount, note, recordAsExpense }) {
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      new obsidian.Notice("\u274C Ingresa un monto v\xE1lido mayor a 0");
+      return false;
+    }
+    const now = /* @__PURE__ */ new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    this.settings.savingsBalance = (Number(this.settings.savingsBalance) || 0) + parsedAmount;
+    const entry = {
+      id: "sav_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+      type: "deposit",
+      amount: parsedAmount,
+      note: (note || "").trim() || "Aporte a Caja de Ahorros",
+      date: todayStr,
+      time: timeStr,
+      timestamp: Date.now()
+    };
+    this.settings.savingsHistory.unshift(entry);
+    if (recordAsExpense) {
+      const catFin = CATEGORIES.find((c) => c.id === "finanzas") || CATEGORIES[7];
+      const tx = {
+        id: "tx_sav_" + entry.id,
+        amount: parsedAmount,
+        concept: `[Ahorro] ${entry.note}`,
+        categoryId: catFin.id,
+        categoryName: catFin.name,
+        categoryIcon: catFin.icon,
+        categoryColor: catFin.color,
+        date: todayStr,
+        time: timeStr,
+        timestamp: Date.now()
+      };
+      this.settings.transactions.unshift(tx);
+      if (this.settings.syncWithNote && this.settings.syncNotePath) {
+        await this.syncToMarkdownNote(tx, catFin);
+      }
+    }
+    await this.saveSettings();
+    new obsidian.Notice(`\u{1F3E6} Ingresados ${this.settings.currency}${parsedAmount.toFixed(2)} a tu Caja de Ahorros`);
+    return true;
+  }
+  async withdrawSavings({ amount, note }) {
+    const parsedAmount = parseFloat(amount);
+    const currentBal = Number(this.settings.savingsBalance) || 0;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      new obsidian.Notice("\u274C Ingresa un monto v\xE1lido mayor a 0");
+      return false;
+    }
+    if (parsedAmount > currentBal) {
+      new obsidian.Notice(`\u274C Fondos insuficientes en la Caja de Ahorros (Saldo: ${this.settings.currency}${currentBal.toFixed(2)})`);
+      return false;
+    }
+    const now = /* @__PURE__ */ new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    this.settings.savingsBalance = currentBal - parsedAmount;
+    const entry = {
+      id: "sav_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+      type: "withdraw",
+      amount: parsedAmount,
+      note: (note || "").trim() || "Retiro de Caja de Ahorros",
+      date: todayStr,
+      time: timeStr,
+      timestamp: Date.now()
+    };
+    this.settings.savingsHistory.unshift(entry);
+    await this.saveSettings();
+    new obsidian.Notice(`\u{1F4E4} Retirados ${this.settings.currency}${parsedAmount.toFixed(2)} de tu Caja de Ahorros`);
+    return true;
+  }
+  async setSavingsGoal(goalAmount) {
+    this.settings.savingsGoal = Math.max(0, parseFloat(goalAmount) || 0);
+    await this.saveSettings();
+    new obsidian.Notice(`\u{1F3AF} Meta de Ahorro fijada en ${this.settings.currency}${this.settings.savingsGoal.toFixed(2)}`);
+  }
+  async deleteSavingsHistoryEntry(id) {
+    this.settings.savingsHistory = (this.settings.savingsHistory || []).filter((e) => e.id !== id);
+    await this.saveSettings();
+    new obsidian.Notice("\u{1F5D1}\uFE0F Registro de ahorro eliminado");
+  }
+  // ─── IMPORTADOR INTELIGENTE DESDE NOTAS ───────────────────────────────────
+  async importWishlistFromNote() {
+    const targetNote = "GOZ-C/ZETTELGOZC/NOTAS IMPERMANENTES/38 FINANCES DAILY EXCEL.md";
+    const file = this.app.vault.getAbstractFileByPath(targetNote);
+    if (!file) {
+      new obsidian.Notice(`\u26A0\uFE0F No se encontr\xF3 la nota: ${targetNote}`);
+      return;
+    }
+    try {
+      const content = await this.app.vault.read(file);
+      const lines = content.split("\n");
+      let importedCount = 0;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("- [ ]") && !trimmed.startsWith("- [x]")) continue;
+        const raw = trimmed.replace(/^-\s*\[[ x]\]\s*/, "").trim();
+        if (/^\d{1,2}\s+(sep|oct|nov|dec|dic|jan|ene|feb|mar|abr|may|jun|jul|ago)/i.test(raw) || /^(lunes|martes|miercoles|miércoles|jueves|viernes|sabado|sábado|domingo)/i.test(raw) || /^pago\s+\d/i.test(raw)) {
+          continue;
+        }
+        let amount = 0;
+        let concept = raw;
+        const p1 = raw.match(/(\d+(?:\.\d+)?)\s*\$/);
+        const p2 = raw.match(/\$\s*(\d+(?:\.\d+)?)/);
+        if (p1) {
+          amount = parseFloat(p1[1]);
+          concept = raw.replace(p1[0], "").trim();
+        } else if (p2) {
+          amount = parseFloat(p2[1]);
+          concept = raw.replace(p2[0], "").trim();
+        }
+        if (amount <= 0 || !concept) continue;
+        concept = concept.replace(/^[-–—:\s´]+|[-–—:\s´]+$/g, "").trim();
+        let catId = "desarrollo";
+        const lower = concept.toLowerCase();
+        if (lower.includes("prote") || lower.includes("medicina") || lower.includes("salud") || lower.includes("bracket") || lower.includes("irrigador") || lower.includes("casco")) {
+          catId = "salud";
+        } else if (lower.includes("mouse") || lower.includes("teclado") || lower.includes("monitor") || lower.includes("pc") || lower.includes("redmipad") || lower.includes("hdmi") || lower.includes("vga") || lower.includes("silla") || lower.includes("microfono") || lower.includes("ups") || lower.includes("cable") || lower.includes("dominio")) {
+          catId = "profesion";
+        } else if (lower.includes("luz") || lower.includes("ba\xF1o") || lower.includes("reloj") || lower.includes("casa") || lower.includes("pintura") || lower.includes("ventilador") || lower.includes("condominio") || lower.includes("aseo")) {
+          catId = "familia";
+        } else if (lower.includes("collar") || lower.includes("gamepad") || lower.includes("juego") || lower.includes("ps5") || lower.includes("sorteo") || lower.includes("capturadora")) {
+          catId = "ocio";
+        } else if (lower.includes("perfume") || lower.includes("camisa") || lower.includes("tatuaje") || lower.includes("short") || lower.includes("pasaporte") || lower.includes("licencia") || lower.includes("powerbank") || lower.includes("bateria") || lower.includes("iphone")) {
+          catId = "desarrollo";
+        } else if (lower.includes("amigo") || lower.includes("trago") || lower.includes("salida")) {
+          catId = "amigos";
+        } else if (lower.includes("ahorro") || lower.includes("inversion") || lower.includes("cashea")) {
+          catId = "finanzas";
+        }
+        const exists = (this.settings.wishlist || []).some(
+          (w) => w.concept.toLowerCase() === concept.toLowerCase()
+        );
+        if (!exists) {
+          const cat = CATEGORIES.find((c) => c.id === catId) || CATEGORIES[0];
+          const wishItem = {
+            id: "wish_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+            concept,
+            amount,
+            categoryId: cat.id,
+            categoryName: cat.name,
+            categoryIcon: cat.icon,
+            categoryColor: cat.color,
+            bought: false,
+            boughtDate: null,
+            txId: null,
+            createdAt: Date.now() - importedCount * 1e3,
+            createdDate: (/* @__PURE__ */ new Date()).toISOString().split("T")[0]
+          };
+          this.settings.wishlist.push(wishItem);
+          importedCount++;
+        }
+      }
+      await this.saveSettings();
+      new obsidian.Notice(`\u{1F389} Se importaron ${importedCount} deseos desde "38 FINANCES DAILY EXCEL"`);
+    } catch (err) {
+      console.error("Error al importar wishlist desde nota:", err);
+      new obsidian.Notice("\u274C Ocurri\xF3 un error leyendo la nota");
+    }
   }
   async syncToMarkdownNote(tx, cat) {
     try {
@@ -157,6 +452,10 @@ var FinancesDailyView = class extends obsidian.ItemView {
     this.selectedCatFilter = null;
     this.searchQuery = "";
     this.selectedFormCat = CATEGORIES[0].id;
+    this.selectedWishCat = CATEGORIES[0].id;
+    this.wishlistSort = this.plugin.settings.wishlistSort || "desc";
+    this.wishlistFilter = this.plugin.settings.wishlistFilter || "all";
+    this.showSavingsHistory = false;
   }
   getViewType() {
     return VIEW_TYPE_FINANCES_DAILY;
@@ -179,9 +478,11 @@ var FinancesDailyView = class extends obsidian.ItemView {
     this.renderQuickCapture(wrapper);
     const filteredTxs = this.getFilteredTransactions();
     this.renderKPIs(wrapper, filteredTxs);
+    this.renderSavingsVault(wrapper);
     const layout = wrapper.createDiv({ cls: "fd-wheel-layout" });
     this.renderWheel(layout, filteredTxs);
     this.renderQuadrants(layout, filteredTxs);
+    this.renderWishlist(wrapper);
     this.renderLedger(wrapper, filteredTxs);
   }
   renderHeader(parent) {
@@ -193,7 +494,7 @@ var FinancesDailyView = class extends obsidian.ItemView {
     const title = textWrap.createEl("h2", { cls: "fd-title" });
     title.setText("Finances Daily");
     const subtitle = textWrap.createEl("p", { cls: "fd-subtitle" });
-    subtitle.setText("Rueda de Gastos de 8 Dimensiones de Vida");
+    subtitle.setText("Rueda de Gastos de 8 Dimensiones de Vida & Caja de Ahorros");
     const actions = header.createDiv({ cls: "fd-header-actions" });
     const tabs = actions.createDiv({ cls: "fd-filter-tabs" });
     const filterOptions = [
@@ -235,24 +536,133 @@ var FinancesDailyView = class extends obsidian.ItemView {
     c1.createDiv({ cls: "fd-kpi-label", text: "Total Gastado" });
     c1.createDiv({ cls: "fd-kpi-value", text: `${this.plugin.settings.currency} ${total.toFixed(2)}` });
     c1.createDiv({ cls: "fd-kpi-badge", text: `\u{1F9FE} ${count} transaccion(es)` });
+    const savingsBal = Number(this.plugin.settings.savingsBalance) || 0;
+    const savingsGoal = Number(this.plugin.settings.savingsGoal) || 0;
+    const c2 = kpiGrid.createDiv({ cls: "fd-kpi-card fd-kpi-savings" });
+    c2.createDiv({ cls: "fd-kpi-label", text: "Caja de Ahorros" });
+    const c2Val = c2.createDiv({ cls: "fd-kpi-value fd-savings-val", text: `${this.plugin.settings.currency} ${savingsBal.toFixed(2)}` });
+    c2Val.style.color = "#10B981";
+    const goalBadge = savingsGoal > 0 ? `\u{1F3AF} ${Math.round(savingsBal / savingsGoal * 100)}% de meta (${this.plugin.settings.currency}${savingsGoal.toFixed(0)})` : "\u{1F3E6} Fondo disponible";
+    c2.createDiv({ cls: "fd-kpi-badge", text: goalBadge });
+    c2.style.cursor = "pointer";
+    c2.onclick = () => {
+      const svCard = document.querySelector(".fd-savings-card");
+      if (svCard) svCard.scrollIntoView({ behavior: "smooth" });
+    };
     const avg = count > 0 ? total / count : 0;
-    const c2 = kpiGrid.createDiv({ cls: "fd-kpi-card" });
-    c2.createDiv({ cls: "fd-kpi-label", text: "Ticket Promedio" });
-    c2.createDiv({ cls: "fd-kpi-value", text: `${this.plugin.settings.currency} ${avg.toFixed(2)}` });
-    c2.createDiv({ cls: "fd-kpi-badge", text: "\u{1F4CA} Por movimiento" });
     const c3 = kpiGrid.createDiv({ cls: "fd-kpi-card" });
-    c3.createDiv({ cls: "fd-kpi-label", text: "Mayor Inversi\xF3n" });
+    c3.createDiv({ cls: "fd-kpi-label", text: "Ticket Promedio" });
+    c3.createDiv({ cls: "fd-kpi-value", text: `${this.plugin.settings.currency} ${avg.toFixed(2)}` });
+    c3.createDiv({ cls: "fd-kpi-badge", text: "\u{1F4CA} Por movimiento" });
+    const c4 = kpiGrid.createDiv({ cls: "fd-kpi-card" });
+    c4.createDiv({ cls: "fd-kpi-label", text: "Mayor Inversi\xF3n" });
     const topLabel = total > 0 ? `${topCat.icon} ${topCat.name}` : "Sin gastos";
-    c3.createDiv({ cls: "fd-kpi-value", text: topLabel });
+    c4.createDiv({ cls: "fd-kpi-value", text: topLabel });
     const pct = total > 0 ? (maxSpent / total * 100).toFixed(1) + "%" : "0%";
-    c3.createDiv({ cls: "fd-kpi-badge", text: `Representa el ${pct} del total` });
+    c4.createDiv({ cls: "fd-kpi-badge", text: `Representa el ${pct} del total` });
     const activeCats = Object.values(totalsByCat).filter((v) => v > 0).length;
     const balancePct = Math.round(activeCats / 8 * 100);
-    const c4 = kpiGrid.createDiv({ cls: "fd-kpi-card" });
-    c4.createDiv({ cls: "fd-kpi-label", text: "Balance de Rueda" });
-    c4.createDiv({ cls: "fd-kpi-value", text: `${activeCats} / 8 \xC1reas` });
-    c4.createDiv({ cls: "fd-kpi-badge", text: `\u{1F3AF} ${balancePct}% de equilibrio activo` });
+    const c5 = kpiGrid.createDiv({ cls: "fd-kpi-card" });
+    c5.createDiv({ cls: "fd-kpi-label", text: "Balance de Rueda" });
+    c5.createDiv({ cls: "fd-kpi-value", text: `${activeCats} / 8 \xC1reas` });
+    c5.createDiv({ cls: "fd-kpi-badge", text: `\u{1F3AF} ${balancePct}% de equilibrio activo` });
   }
+  // ─── CAJA DE AHORROS (SAVINGS VAULT) ──────────────────────────────────────
+  renderSavingsVault(parent) {
+    const card = parent.createDiv({ cls: "fd-savings-card" });
+    const topRow = card.createDiv({ cls: "fd-savings-top" });
+    const identity = topRow.createDiv({ cls: "fd-savings-identity" });
+    const iconBox = identity.createDiv({ cls: "fd-savings-icon" });
+    iconBox.setText("\u{1F3E6}");
+    const textWrap = identity.createDiv();
+    const title = textWrap.createEl("h3", { cls: "fd-savings-title", text: "Caja de Ahorros & B\xF3veda de Fondos" });
+    const subtitle = textWrap.createEl("p", { cls: "fd-savings-subtitle", text: "Reserva acumulada para liquidez, emergencias y compras mayores" });
+    const balanceDisplay = topRow.createDiv({ cls: "fd-savings-balance-box" });
+    balanceDisplay.createDiv({ cls: "fd-savings-balance-label", text: "TOTAL AHORRADO" });
+    balanceDisplay.createDiv({
+      cls: "fd-savings-balance-val",
+      text: `${this.plugin.settings.currency} ${(Number(this.plugin.settings.savingsBalance) || 0).toFixed(2)}`
+    });
+    const actionsRow = card.createDiv({ cls: "fd-savings-actions" });
+    const depositBtn = actionsRow.createEl("button", {
+      cls: "fd-savings-btn deposit",
+      text: "\u2795 Ingresar Ahorro"
+    });
+    depositBtn.onclick = () => {
+      new SavingsDepositModal(this.app, this.plugin, () => this.render()).open();
+    };
+    const withdrawBtn = actionsRow.createEl("button", {
+      cls: "fd-savings-btn withdraw",
+      text: "\u{1F4E4} Retirar Ahorro"
+    });
+    withdrawBtn.onclick = () => {
+      new SavingsWithdrawModal(this.app, this.plugin, () => this.render()).open();
+    };
+    const goalBtn = actionsRow.createEl("button", {
+      cls: "fd-savings-btn goal",
+      text: "\u{1F3AF} Meta de Ahorro"
+    });
+    goalBtn.onclick = () => {
+      new SavingsGoalModal(this.app, this.plugin, () => this.render()).open();
+    };
+    const histCount = (this.plugin.settings.savingsHistory || []).length;
+    const historyBtn = actionsRow.createEl("button", {
+      cls: `fd-savings-btn history ${this.showSavingsHistory ? "active" : ""}`,
+      text: `\u{1F4DC} Movimientos (${histCount})`
+    });
+    historyBtn.onclick = () => {
+      this.showSavingsHistory = !this.showSavingsHistory;
+      this.render();
+    };
+    const currentBal = Number(this.plugin.settings.savingsBalance) || 0;
+    const goal = Number(this.plugin.settings.savingsGoal) || 0;
+    if (goal > 0) {
+      const goalBox = card.createDiv({ cls: "fd-savings-goal-box" });
+      const goalHeader = goalBox.createDiv({ cls: "fd-savings-goal-header" });
+      const pct = Math.min(100, Math.round(currentBal / goal * 100));
+      goalHeader.createSpan({ text: `\u{1F3AF} Meta Objetivo: ${this.plugin.settings.currency}${goal.toFixed(2)}` });
+      goalHeader.createSpan({ cls: "fd-goal-pct", text: `${pct}% alcanzado (${this.plugin.settings.currency}${currentBal.toFixed(2)} de ${this.plugin.settings.currency}${goal.toFixed(2)})` });
+      const barBg = goalBox.createDiv({ cls: "fd-progress-bar-bg fd-goal-bar-bg" });
+      const barFill = barBg.createDiv({ cls: "fd-progress-bar-fill fd-goal-bar-fill" });
+      barFill.style.width = `${pct}%`;
+    }
+    if (this.showSavingsHistory) {
+      const historyBox = card.createDiv({ cls: "fd-savings-history-box" });
+      const histList = this.plugin.settings.savingsHistory || [];
+      if (histList.length === 0) {
+        historyBox.createDiv({ cls: "fd-empty-state", text: "No hay movimientos registrados en la caja de ahorros a\xFAn." });
+      } else {
+        histList.slice(0, 15).forEach((entry) => {
+          const item = historyBox.createDiv({ cls: "fd-savings-hist-item" });
+          const left = item.createDiv({ cls: "fd-hist-left" });
+          const isDep = entry.type === "deposit";
+          const typeBadge = left.createSpan({
+            cls: `fd-hist-type ${isDep ? "dep" : "with"}`,
+            text: isDep ? "\u{1F4E5} Dep\xF3sito" : "\u{1F4E4} Retiro"
+          });
+          const noteEl = left.createSpan({ cls: "fd-hist-note", text: entry.note || (isDep ? "Aporte" : "Retiro") });
+          left.createSpan({ cls: "fd-hist-date", text: `${entry.date || ""} \u2022 ${entry.time || ""}` });
+          const right = item.createDiv({ cls: "fd-hist-right" });
+          right.createSpan({
+            cls: `fd-hist-amount ${isDep ? "dep" : "with"}`,
+            text: `${isDep ? "+" : "-"}${this.plugin.settings.currency}${Number(entry.amount).toFixed(2)}`
+          });
+          const del = right.createEl("button", {
+            cls: "fd-delete-btn",
+            attr: { title: "Eliminar este movimiento" }
+          });
+          del.setText("\xD7");
+          del.onclick = async () => {
+            if (confirm("\xBFEliminar este registro del historial?")) {
+              await this.plugin.deleteSavingsHistoryEntry(entry.id);
+              this.render();
+            }
+          };
+        });
+      }
+    }
+  }
+  // ─── QUICK CAPTURE GASTOS ────────────────────────────────────────────────
   renderQuickCapture(parent) {
     const box = parent.createDiv({ cls: "fd-capture-box" });
     const title = box.createDiv({ cls: "fd-capture-title" });
@@ -334,6 +744,7 @@ var FinancesDailyView = class extends obsidian.ItemView {
       }
     });
   }
+  // ─── SVG WHEEL ───────────────────────────────────────────────────────────
   renderWheel(parent, txs) {
     const card = parent.createDiv({ cls: "fd-wheel-card" });
     const totals = {};
@@ -456,6 +867,7 @@ var FinancesDailyView = class extends obsidian.ItemView {
       "Z"
     ].join(" ");
   }
+  // ─── QUADRANTS ───────────────────────────────────────────────────────────
   renderQuadrants(parent, txs) {
     const grid = parent.createDiv({ cls: "fd-quadrant-grid" });
     const totals = {};
@@ -498,6 +910,225 @@ var FinancesDailyView = class extends obsidian.ItemView {
       footer.createSpan({ text: `${pct}% del total` });
     });
   }
+  // ─── NUEVA SECCIÓN: WISHLIST & COMPRAS PLANIFICADAS (8 CUADRANTES) ────────
+  renderWishlist(parent) {
+    const box = parent.createDiv({ cls: "fd-wishlist-box" });
+    const header = box.createDiv({ cls: "fd-wishlist-header" });
+    const titleGroup = header.createDiv({ cls: "fd-wishlist-title-group" });
+    const title = titleGroup.createEl("h3", { cls: "fd-wishlist-title" });
+    title.setText("\u{1F3AF} Compras Planificadas & Wishlist (8 Cuadrantes)");
+    const subtitle = titleGroup.createEl("p", { cls: "fd-wishlist-subtitle" });
+    subtitle.setText("Lista de deseos vinculada a tus 8 \xE1reas. Al marcar un art\xEDculo como comprado, suma de inmediato a la Rueda de Gastos.");
+    const wishlist = this.plugin.settings.wishlist || [];
+    const pendingItems = wishlist.filter((w) => !w.bought);
+    const boughtItems = wishlist.filter((w) => w.bought);
+    const pendingTotal = pendingItems.reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const boughtTotal = boughtItems.reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const statsRow = header.createDiv({ cls: "fd-wishlist-stats" });
+    const pBadge = statsRow.createDiv({ cls: "fd-wish-stat-pill pending" });
+    pBadge.createSpan({ text: "\u23F3 Por Comprar: " });
+    pBadge.createEl("strong", { text: `${this.plugin.settings.currency}${pendingTotal.toFixed(2)} (${pendingItems.length})` });
+    const bBadge = statsRow.createDiv({ cls: "fd-wish-stat-pill bought" });
+    bBadge.createSpan({ text: "\u2705 En Rueda: " });
+    bBadge.createEl("strong", { text: `${this.plugin.settings.currency}${boughtTotal.toFixed(2)} (${boughtItems.length})` });
+    const formBox = box.createDiv({ cls: "fd-wishlist-form-box" });
+    formBox.createDiv({ cls: "fd-form-label", text: "\u2728 Agregar nuevo deseo o compra planeada:" });
+    const catSelector = formBox.createDiv({ cls: "fd-category-selector" });
+    CATEGORIES.forEach((c) => {
+      const isSelected = this.selectedWishCat === c.id;
+      const pill = catSelector.createEl("button", {
+        cls: `fd-cat-pill ${isSelected ? "selected" : ""}`,
+        attr: { type: "button" }
+      });
+      pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
+      pill.style.background = isSelected ? c.color : "var(--background-primary)";
+      pill.createSpan({ text: c.icon });
+      pill.createSpan({ text: c.name });
+      pill.onclick = () => {
+        this.selectedWishCat = c.id;
+        const pills = catSelector.querySelectorAll(".fd-cat-pill");
+        pills.forEach((p, idx) => {
+          const catObj = CATEGORIES[idx];
+          if (catObj.id === c.id) {
+            p.addClass("selected");
+            p.style.background = catObj.color;
+            p.style.borderColor = catObj.color;
+          } else {
+            p.removeClass("selected");
+            p.style.background = "var(--background-primary)";
+            p.style.borderColor = "var(--background-modifier-border)";
+          }
+        });
+      };
+    });
+    const inputsRow = formBox.createDiv({ cls: "fd-wishlist-inputs" });
+    const amountInput = inputsRow.createEl("input", {
+      cls: "fd-input fd-amount-input",
+      attr: {
+        type: "number",
+        step: "0.01",
+        min: "0.01",
+        placeholder: `Precio (${this.plugin.settings.currency})`
+      }
+    });
+    const conceptInput = inputsRow.createEl("input", {
+      cls: "fd-input",
+      attr: {
+        type: "text",
+        placeholder: "\xBFQu\xE9 te quieres comprar? (ej: Zapatos Cashea, Micr\xF3fono, Tatuaje...)"
+      }
+    });
+    const addBtn = inputsRow.createEl("button", {
+      cls: "fd-submit-btn fd-wish-add-btn",
+      text: "+ Agregar a Deseos"
+    });
+    const handleAddWish = async () => {
+      const amt = amountInput.value;
+      const conc = conceptInput.value;
+      const res = await this.plugin.addWishlistItem({
+        amount: amt,
+        concept: conc,
+        categoryId: this.selectedWishCat
+      });
+      if (res) {
+        amountInput.value = "";
+        conceptInput.value = "";
+        this.render();
+      }
+    };
+    addBtn.onclick = handleAddWish;
+    conceptInput.onkeydown = (e) => {
+      if (e.key === "Enter") handleAddWish();
+    };
+    amountInput.onkeydown = (e) => {
+      if (e.key === "Enter") conceptInput.focus();
+    };
+    const toolbar = box.createDiv({ cls: "fd-wishlist-toolbar" });
+    const sortGroup = toolbar.createDiv({ cls: "fd-toolbar-group" });
+    sortGroup.createSpan({ cls: "fd-toolbar-label", text: "Ordenar por:" });
+    const currentSort = this.wishlistSort || this.plugin.settings.wishlistSort || "desc";
+    const sortOptions = [
+      { key: "desc", label: "\u{1F53D} M\xE1s Caro a M\xE1s Barato" },
+      { key: "asc", label: "\u{1F53C} M\xE1s Barato a M\xE1s Caro" },
+      { key: "recent", label: "\u{1F552} M\xE1s Reciente" },
+      { key: "category", label: "\u{1F3F7}\uFE0F Por Cuadrante" }
+    ];
+    sortOptions.forEach((opt) => {
+      const isAct = currentSort === opt.key;
+      const sBtn = sortGroup.createEl("button", {
+        cls: `fd-sort-btn ${isAct ? "active" : ""}`,
+        text: opt.label
+      });
+      sBtn.onclick = async () => {
+        this.wishlistSort = opt.key;
+        this.plugin.settings.wishlistSort = opt.key;
+        await this.plugin.saveSettings();
+        this.render();
+      };
+    });
+    const filterGroup = toolbar.createDiv({ cls: "fd-toolbar-group" });
+    filterGroup.createSpan({ cls: "fd-toolbar-label", text: "Ver:" });
+    const currentF = this.wishlistFilter || this.plugin.settings.wishlistFilter || "all";
+    const filterTabs = [
+      { key: "all", label: `Todos (${wishlist.length})` },
+      { key: "pending", label: `\u23F3 Pendientes (${pendingItems.length})` },
+      { key: "bought", label: `\u2705 Comprados (${boughtItems.length})` }
+    ];
+    filterTabs.forEach((f) => {
+      const isAct = currentF === f.key;
+      const fBtn = filterGroup.createEl("button", {
+        cls: `fd-filter-chip ${isAct ? "active" : ""}`,
+        text: f.label
+      });
+      fBtn.onclick = async () => {
+        this.wishlistFilter = f.key;
+        this.plugin.settings.wishlistFilter = f.key;
+        await this.plugin.saveSettings();
+        this.render();
+      };
+    });
+    const itemsContainer = box.createDiv({ cls: "fd-wishlist-items" });
+    this.renderWishlistItems(itemsContainer);
+  }
+  renderWishlistItems(container) {
+    container.empty();
+    let list = [...this.plugin.settings.wishlist || []];
+    const f = this.wishlistFilter || this.plugin.settings.wishlistFilter || "all";
+    if (f === "pending") {
+      list = list.filter((w) => !w.bought);
+    } else if (f === "bought") {
+      list = list.filter((w) => w.bought);
+    }
+    const sortMode = this.wishlistSort || this.plugin.settings.wishlistSort || "desc";
+    if (sortMode === "desc") {
+      list.sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0));
+    } else if (sortMode === "asc") {
+      list.sort((a, b) => (Number(a.amount) || 0) - (Number(b.amount) || 0));
+    } else if (sortMode === "recent") {
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } else if (sortMode === "category") {
+      list.sort((a, b) => (a.categoryName || "").localeCompare(b.categoryName || ""));
+    }
+    if (list.length === 0) {
+      const empty = container.createDiv({ cls: "fd-empty-state" });
+      empty.setText("No hay compras deseadas en esta vista. \xA1Agrega tus metas arriba o imp\xF3rtalas con 1 clic!");
+      return;
+    }
+    list.forEach((item) => {
+      const cat = CATEGORIES.find((c) => c.id === item.categoryId) || CATEGORIES[0];
+      const isBought = !!item.bought;
+      const row = container.createDiv({
+        cls: `fd-wish-item ${isBought ? "bought" : "pending"}`
+      });
+      const left = row.createDiv({ cls: "fd-wish-left" });
+      const chkWrap = left.createDiv({ cls: "fd-chk-wrapper" });
+      const chk = chkWrap.createEl("input", {
+        cls: "fd-wish-checkbox",
+        attr: {
+          type: "checkbox",
+          title: isBought ? "Desmarcar para quitar de la Rueda de Gastos" : "Marcar para sumar a la Rueda de Gastos"
+        }
+      });
+      chk.checked = isBought;
+      chk.onchange = async () => {
+        await this.plugin.toggleWishlistItem(item.id);
+        this.render();
+      };
+      const badge = left.createDiv({ cls: "fd-wish-cat-badge" });
+      badge.style.background = cat.color + "22";
+      badge.style.color = cat.color;
+      badge.style.border = `1px solid ${cat.color}55`;
+      badge.setText(`${cat.icon} ${cat.name}`);
+      const textWrap = left.createDiv({ cls: "fd-wish-text-wrap" });
+      const conceptEl = textWrap.createDiv({
+        cls: `fd-wish-concept ${isBought ? "concept-bought" : ""}`,
+        text: item.concept
+      });
+      const metaEl = textWrap.createDiv({ cls: "fd-wish-meta" });
+      if (isBought) {
+        metaEl.createSpan({ cls: "fd-status-badge in-wheel", text: `\u2713 Sumado a la Rueda (${item.boughtDate || "Comprado"})` });
+      } else {
+        metaEl.createSpan({ cls: "fd-status-badge pending", text: "\u23F3 Planeado / Por Comprar" });
+      }
+      const right = row.createDiv({ cls: "fd-wish-right" });
+      const amtEl = right.createDiv({
+        cls: `fd-wish-amount ${isBought ? "amt-bought" : ""}`,
+        text: `${this.plugin.settings.currency}${Number(item.amount).toFixed(2)}`
+      });
+      const delBtn = right.createEl("button", {
+        cls: "fd-delete-btn",
+        attr: { title: "Eliminar este art\xEDculo" }
+      });
+      delBtn.setText("\u{1F5D1}\uFE0F");
+      delBtn.onclick = async () => {
+        if (confirm(`\xBFEliminar "${item.concept}" de tu lista de deseos?`)) {
+          await this.plugin.deleteWishlistItem(item.id);
+          this.render();
+        }
+      };
+    });
+  }
+  // ─── LEDGER (HISTORIAL DE GASTOS) ────────────────────────────────────────
   renderLedger(parent, txs) {
     const box = parent.createDiv({ cls: "fd-ledger-box" });
     const header = box.createDiv({ cls: "fd-ledger-header" });
@@ -546,8 +1177,11 @@ var FinancesDailyView = class extends obsidian.ItemView {
       badge.style.border = `1px solid ${cat.color}44`;
       badge.setText(`${cat.icon} ${cat.name}`);
       const textWrap = left.createDiv();
-      textWrap.createDiv({ cls: "fd-item-concept", text: item.concept });
-      textWrap.createDiv({ cls: "fd-item-date", text: `${item.date} \u2022 ${item.time}` });
+      const conceptText = textWrap.createDiv({ cls: "fd-item-concept" });
+      conceptText.setText(item.concept);
+      const isWish = item.isFromWishlist;
+      const dateText = textWrap.createDiv({ cls: "fd-item-date" });
+      dateText.setText(`${item.date} \u2022 ${item.time}${isWish ? " (\u{1F3AF} Desde Wishlist)" : ""}`);
       const right = row.createDiv({ cls: "fd-item-right" });
       right.createDiv({ cls: "fd-item-amount", text: `-${this.plugin.settings.currency}${Number(item.amount).toFixed(2)}` });
       const delBtn = right.createEl("button", {
@@ -666,6 +1300,273 @@ var QuickExpenseModal = class extends obsidian.Modal {
     this.contentEl.empty();
   }
 };
+var QuickWishlistModal = class extends obsidian.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+    this.selectedCat = CATEGORIES[0].id;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fd-modal");
+    const title = contentEl.createEl("h3", { cls: "fd-modal-header" });
+    title.setText("\u{1F3AF} Agregar Deseo a la Wishlist (8 Cuadrantes)");
+    const catSelector = contentEl.createDiv({ cls: "fd-category-selector" });
+    CATEGORIES.forEach((c) => {
+      const isSelected = this.selectedCat === c.id;
+      const pill = catSelector.createEl("button", {
+        cls: `fd-cat-pill ${isSelected ? "selected" : ""}`,
+        attr: { type: "button" }
+      });
+      pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
+      pill.style.background = isSelected ? c.color : "var(--background-primary)";
+      pill.setText(`${c.icon} ${c.name}`);
+      pill.onclick = () => {
+        this.selectedCat = c.id;
+        const all = catSelector.querySelectorAll(".fd-cat-pill");
+        all.forEach((p, idx) => {
+          const match = CATEGORIES[idx];
+          if (match.id === c.id) {
+            p.addClass("selected");
+            p.style.background = match.color;
+            p.style.borderColor = match.color;
+          } else {
+            p.removeClass("selected");
+            p.style.background = "var(--background-primary)";
+            p.style.borderColor = "var(--background-modifier-border)";
+          }
+        });
+      };
+    });
+    const amountInput = contentEl.createEl("input", {
+      cls: "fd-input fd-amount-input",
+      attr: {
+        type: "number",
+        step: "0.01",
+        min: "0.01",
+        placeholder: `Precio Estimado (${this.plugin.settings.currency})`,
+        style: "width: 100%; margin-top: 8px;"
+      }
+    });
+    const conceptInput = contentEl.createEl("input", {
+      cls: "fd-input",
+      attr: {
+        type: "text",
+        placeholder: "\xBFQu\xE9 te quieres comprar? (ej: Zapatos Cashea, Monitor...)",
+        style: "width: 100%; margin-top: 8px;"
+      }
+    });
+    const submitBtn = contentEl.createEl("button", {
+      cls: "fd-submit-btn",
+      text: "Guardar en Wishlist",
+      attr: { style: "width: 100%; margin-top: 12px; padding: 12px;" }
+    });
+    const doSubmit = async () => {
+      const res = await this.plugin.addWishlistItem({
+        amount: amountInput.value,
+        concept: conceptInput.value,
+        categoryId: this.selectedCat
+      });
+      if (res) {
+        this.close();
+      }
+    };
+    submitBtn.onclick = doSubmit;
+    conceptInput.onkeydown = (e) => {
+      if (e.key === "Enter") doSubmit();
+    };
+    amountInput.onkeydown = (e) => {
+      if (e.key === "Enter") conceptInput.focus();
+    };
+    setTimeout(() => amountInput.focus(), 50);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var SavingsDepositModal = class extends obsidian.Modal {
+  constructor(app, plugin, onDone) {
+    super(app);
+    this.plugin = plugin;
+    this.onDone = onDone;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fd-modal");
+    contentEl.createEl("h3", { text: "\u{1F3E6} Ingresar Ahorro a la B\xF3veda", cls: "fd-modal-header" });
+    const currentBal = Number(this.plugin.settings.savingsBalance) || 0;
+    contentEl.createDiv({
+      text: `Saldo actual ahorrado: ${this.plugin.settings.currency}${currentBal.toFixed(2)}`,
+      attr: { style: "font-size: 13px; color: #10B981; font-weight: 600;" }
+    });
+    const amountInput = contentEl.createEl("input", {
+      cls: "fd-input fd-amount-input",
+      attr: {
+        type: "number",
+        step: "0.01",
+        min: "0.01",
+        placeholder: `Monto a ingresar (${this.plugin.settings.currency})`,
+        style: "width: 100%; margin-top: 10px;"
+      }
+    });
+    const noteInput = contentEl.createEl("input", {
+      cls: "fd-input",
+      attr: {
+        type: "text",
+        placeholder: "Concepto o procedencia (ej: Sobrante quincena, Venta, Aporte)",
+        style: "width: 100%; margin-top: 10px;"
+      }
+    });
+    const toggleRow = contentEl.createDiv({
+      attr: { style: "display: flex; align-items: center; gap: 8px; margin-top: 12px;" }
+    });
+    const check = toggleRow.createEl("input", {
+      attr: { type: "checkbox", id: "fd-sav-as-expense" }
+    });
+    toggleRow.createEl("label", {
+      text: "Registrar tambi\xE9n como gasto en el cuadrante Finanzas de la Rueda",
+      attr: { for: "fd-sav-as-expense", style: "font-size: 12px; color: var(--text-muted); cursor: pointer;" }
+    });
+    const submitBtn = contentEl.createEl("button", {
+      cls: "fd-submit-btn",
+      text: "Confirmar Ingreso",
+      attr: { style: "width: 100%; margin-top: 16px; padding: 12px;" }
+    });
+    const handleSubmit = async () => {
+      const ok = await this.plugin.depositSavings({
+        amount: amountInput.value,
+        note: noteInput.value,
+        recordAsExpense: check.checked
+      });
+      if (ok) {
+        this.close();
+        if (this.onDone) this.onDone();
+      }
+    };
+    submitBtn.onclick = handleSubmit;
+    amountInput.onkeydown = (e) => {
+      if (e.key === "Enter") noteInput.focus();
+    };
+    noteInput.onkeydown = (e) => {
+      if (e.key === "Enter") handleSubmit();
+    };
+    setTimeout(() => amountInput.focus(), 50);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var SavingsWithdrawModal = class extends obsidian.Modal {
+  constructor(app, plugin, onDone) {
+    super(app);
+    this.plugin = plugin;
+    this.onDone = onDone;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fd-modal");
+    contentEl.createEl("h3", { text: "\u{1F4E4} Retirar de la Caja de Ahorros", cls: "fd-modal-header" });
+    const currentBal = Number(this.plugin.settings.savingsBalance) || 0;
+    contentEl.createDiv({
+      text: `Saldo disponible para retiro: ${this.plugin.settings.currency}${currentBal.toFixed(2)}`,
+      attr: { style: "font-size: 13px; color: var(--text-muted);" }
+    });
+    const amountInput = contentEl.createEl("input", {
+      cls: "fd-input fd-amount-input",
+      attr: {
+        type: "number",
+        step: "0.01",
+        min: "0.01",
+        max: String(currentBal),
+        placeholder: `Monto a retirar (${this.plugin.settings.currency})`,
+        style: "width: 100%; margin-top: 10px;"
+      }
+    });
+    const noteInput = contentEl.createEl("input", {
+      cls: "fd-input",
+      attr: {
+        type: "text",
+        placeholder: "Motivo del retiro (ej: Compra urgente, etc.)",
+        style: "width: 100%; margin-top: 10px;"
+      }
+    });
+    const submitBtn = contentEl.createEl("button", {
+      cls: "fd-submit-btn fd-withdraw-btn",
+      text: "Confirmar Retiro",
+      attr: { style: "width: 100%; margin-top: 16px; padding: 12px; background: linear-gradient(135deg, #EF4444, #DC2626);" }
+    });
+    const handleSubmit = async () => {
+      const ok = await this.plugin.withdrawSavings({
+        amount: amountInput.value,
+        note: noteInput.value
+      });
+      if (ok) {
+        this.close();
+        if (this.onDone) this.onDone();
+      }
+    };
+    submitBtn.onclick = handleSubmit;
+    amountInput.onkeydown = (e) => {
+      if (e.key === "Enter") noteInput.focus();
+    };
+    noteInput.onkeydown = (e) => {
+      if (e.key === "Enter") handleSubmit();
+    };
+    setTimeout(() => amountInput.focus(), 50);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var SavingsGoalModal = class extends obsidian.Modal {
+  constructor(app, plugin, onDone) {
+    super(app);
+    this.plugin = plugin;
+    this.onDone = onDone;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("fd-modal");
+    contentEl.createEl("h3", { text: "\u{1F3AF} Meta de la Caja de Ahorros", cls: "fd-modal-header" });
+    contentEl.createDiv({
+      text: "Define cu\xE1nto deseas acumular como fondo de reserva o meta personal.",
+      attr: { style: "font-size: 13px; color: var(--text-muted); margin-bottom: 8px;" }
+    });
+    const goalInput = contentEl.createEl("input", {
+      cls: "fd-input fd-amount-input",
+      attr: {
+        type: "number",
+        step: "1",
+        min: "0",
+        placeholder: `Meta de Ahorro (${this.plugin.settings.currency})`,
+        value: this.plugin.settings.savingsGoal > 0 ? this.plugin.settings.savingsGoal : "",
+        style: "width: 100%;"
+      }
+    });
+    const submitBtn = contentEl.createEl("button", {
+      cls: "fd-submit-btn",
+      text: "Guardar Meta",
+      attr: { style: "width: 100%; margin-top: 16px; padding: 12px;" }
+    });
+    const handleSubmit = async () => {
+      await this.plugin.setSavingsGoal(goalInput.value);
+      this.close();
+      if (this.onDone) this.onDone();
+    };
+    submitBtn.onclick = handleSubmit;
+    goalInput.onkeydown = (e) => {
+      if (e.key === "Enter") handleSubmit();
+    };
+    setTimeout(() => goalInput.focus(), 50);
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
 var FinancesDailySettingTab = class extends obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -679,6 +1580,10 @@ var FinancesDailySettingTab = class extends obsidian.PluginSettingTab {
       this.plugin.settings.currency = val.trim() || "$";
       await this.plugin.saveSettings();
     }));
+    new obsidian.Setting(containerEl).setName("Meta de la Caja de Ahorros").setDesc("Fondo objetivo que deseas acumular en tu caja de ahorros.").addText((text) => text.setPlaceholder("500").setValue(String(this.plugin.settings.savingsGoal || "")).onChange(async (val) => {
+      this.plugin.settings.savingsGoal = Math.max(0, parseFloat(val) || 0);
+      await this.plugin.saveSettings();
+    }));
     new obsidian.Setting(containerEl).setName("Sincronizar autom\xE1ticamente con Nota Markdown").setDesc("Si est\xE1 activo, cada gasto registrado se a\xF1adir\xE1 autom\xE1ticamente a tu nota de diario en el \xE1rea de vida correspondiente.").addToggle((toggle) => toggle.setValue(this.plugin.settings.syncWithNote).onChange(async (val) => {
       this.plugin.settings.syncWithNote = val;
       await this.plugin.saveSettings();
@@ -687,28 +1592,33 @@ var FinancesDailySettingTab = class extends obsidian.PluginSettingTab {
       this.plugin.settings.syncNotePath = val.trim() || "DIARIO DE RUEDA.md";
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Gesti\xF3n de Datos" });
-    new obsidian.Setting(containerEl).setName("Exportar Gastos a CSV").setDesc("Descarga todos los gastos en un archivo .csv compatible con Excel o Google Sheets.").addButton((btn) => btn.setButtonText("Exportar CSV").onClick(() => {
+    containerEl.createEl("h3", { text: "Gesti\xF3n y Exportaci\xF3n de Datos" });
+    new obsidian.Setting(containerEl).setName("Exportar Datos Completos a CSV").setDesc("Descarga gastos, deseos y movimientos de caja de ahorro en un archivo CSV.").addButton((btn) => btn.setButtonText("Exportar CSV").onClick(() => {
       const txs = this.plugin.settings.transactions || [];
-      if (txs.length === 0) {
-        new obsidian.Notice("No hay gastos para exportar");
-        return;
-      }
-      const headers = ["ID", "Fecha", "Hora", "Categoria", "Concepto", "Monto"];
-      const rows = txs.map((t) => [t.id, t.date, t.time, t.categoryName, `"${t.concept}"`, t.amount]);
+      const wishes = this.plugin.settings.wishlist || [];
+      const headers = ["Tipo", "ID", "Fecha", "Hora", "Categoria", "Concepto", "Monto", "Estado"];
+      const rows = [
+        ...txs.map((t) => ["GASTO", t.id, t.date, t.time, t.categoryName, `"${t.concept}"`, t.amount, "PAGADO"]),
+        ...wishes.map((w) => ["DESEO", w.id, w.createdDate, "", w.categoryName, `"${w.concept}"`, w.amount, w.bought ? "COMPRADO_EN_RUEDA" : "PENDIENTE"])
+      ];
       const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `finances_daily_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.csv`;
+      a.download = `finances_daily_full_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       new obsidian.Notice("\u2705 Archivo CSV exportado");
     }));
-    new obsidian.Setting(containerEl).setName("Reiniciar Historial de Gastos").setDesc("\u26A0\uFE0F Borra todos los registros guardados en la extensi\xF3n.").addButton((btn) => btn.setButtonText("Borrar Todo").setWarning().onClick(async () => {
+    new obsidian.Setting(containerEl).setName("Reiniciar Historial de Gastos").setDesc("\u26A0\uFE0F Borra \xFAnicamente los gastos registrados en la Rueda.").addButton((btn) => btn.setButtonText("Borrar Gastos").setWarning().onClick(async () => {
       if (confirm("\xBFEst\xE1s seguro de que deseas eliminar TODOS los gastos registrados en la Rueda? Esta acci\xF3n no se puede deshacer.")) {
         this.plugin.settings.transactions = [];
+        (this.plugin.settings.wishlist || []).forEach((w) => {
+          w.bought = false;
+          w.boughtDate = null;
+          w.txId = null;
+        });
         await this.plugin.saveSettings();
         new obsidian.Notice("Historial reiniciado correctamente");
       }

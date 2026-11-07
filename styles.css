@@ -1,6 +1,6 @@
-
 /* ══════════════════════════════════════════════════════════════════════════
-   FINANCES DAILY - RUEDA DE GASTOS (Obsidian Extension Style)
+   FINANCES DAILY - RUEDA DE GASTOS & CAJA DE AHORROS
+   Obsidian Extension Style by Nelxson2099
    ══════════════════════════════════════════════════════════════════════════ */
 
 .finances-daily-view {
@@ -13,15 +13,15 @@
 }
 
 .fd-container {
-  max-width: 1100px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 20px 60px 20px;
+  padding: 24px 20px 80px 20px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-/* Header */
+/* ─── HEADER ─────────────────────────────────────────────────────────────── */
 .fd-header {
   display: flex;
   flex-wrap: wrap;
@@ -42,7 +42,7 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(99, 102, 241, 0.2));
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(99, 102, 241, 0.25));
   border: 1px solid rgba(16, 185, 129, 0.35);
   display: flex;
   align-items: center;
@@ -104,10 +104,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* KPI Banner */
+/* ─── KPI BANNER (5 CARDS) ────────────────────────────────────────────────── */
 .fd-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
 
@@ -128,6 +128,16 @@
 .fd-kpi-card:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.15);
+}
+
+.fd-kpi-savings {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), var(--background-secondary));
+}
+
+.fd-kpi-savings:hover {
+  border-color: #10B981;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.15);
 }
 
 .fd-kpi-label {
@@ -153,7 +163,262 @@
   gap: 4px;
 }
 
-/* Quick Capture Card */
+/* ─── CAJA DE AHORROS (SAVINGS VAULT) ────────────────────────────────────── */
+.fd-savings-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(20, 184, 166, 0.03)), var(--background-secondary);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.fd-savings-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.fd-savings-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fd-savings-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.fd-savings-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.fd-savings-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.fd-savings-balance-box {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.fd-savings-balance-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #10B981;
+}
+
+.fd-savings-balance-val {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-monospace);
+  color: #10B981;
+  text-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
+  line-height: 1.1;
+}
+
+.fd-savings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fd-savings-btn {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fd-savings-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.fd-savings-btn.deposit {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10B981;
+  font-weight: 700;
+}
+
+.fd-savings-btn.deposit:hover {
+  background: #10B981;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+.fd-savings-btn.withdraw {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #EF4444;
+}
+
+.fd-savings-btn.withdraw:hover {
+  background: #EF4444;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+
+.fd-savings-btn.goal {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--text-normal);
+}
+
+.fd-savings-btn.goal:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+.fd-savings-btn.history.active {
+  background: var(--background-modifier-hover);
+  border-color: var(--text-muted);
+}
+
+/* Goal Progress Bar */
+.fd-savings-goal-box {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fd-savings-goal-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.fd-goal-pct {
+  color: #10B981;
+  font-weight: 700;
+}
+
+.fd-goal-bar-bg {
+  height: 8px;
+}
+
+.fd-goal-bar-fill {
+  background: linear-gradient(90deg, #10B981, #14B8A6);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+/* Savings History Accordion */
+.fd-savings-history-box {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.fd-savings-hist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: 12px;
+}
+
+.fd-hist-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fd-hist-type {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.fd-hist-type.dep {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.fd-hist-type.with {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+}
+
+.fd-hist-note {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.fd-hist-date {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.fd-hist-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fd-hist-amount {
+  font-family: var(--font-monospace);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.fd-hist-amount.dep {
+  color: #10B981;
+}
+
+.fd-hist-amount.with {
+  color: #EF4444;
+}
+
+/* ─── QUICK CAPTURE CARD ─────────────────────────────────────────────────── */
 .fd-capture-box {
   background: linear-gradient(180deg, var(--background-secondary), var(--background-primary));
   border: 1px solid var(--background-modifier-border);
@@ -271,7 +536,7 @@
   transform: translateY(0);
 }
 
-/* Main Wheel & Quadrants Layout */
+/* ─── MAIN WHEEL & QUADRANTS LAYOUT ──────────────────────────────────────── */
 .fd-wheel-layout {
   display: grid;
   grid-template-columns: 420px 1fr;
@@ -442,7 +707,291 @@
   color: var(--text-muted);
 }
 
-/* Ledger / History */
+/* ─── WISHLIST & COMPRAS PLANIFICADAS (8 CUADRANTES) ────────────────────── */
+.fd-wishlist-box {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.fd-wishlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.fd-wishlist-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.fd-wishlist-subtitle {
+  margin: 3px 0 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.fd-wishlist-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fd-wish-stat-pill {
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fd-wish-stat-pill.pending strong {
+  color: #F59E0B;
+}
+
+.fd-wish-stat-pill.bought strong {
+  color: #10B981;
+}
+
+/* Wishlist Form */
+.fd-wishlist-form-box {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fd-form-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.fd-wishlist-inputs {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 12px;
+}
+
+@media (max-width: 680px) {
+  .fd-wishlist-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fd-wish-add-btn {
+  background: linear-gradient(135deg, #6366F1, #4F46E5);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+
+.fd-wish-add-btn:hover {
+  opacity: 0.92;
+}
+
+/* Wishlist Toolbar */
+.fd-wishlist-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.fd-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fd-toolbar-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.fd-sort-btn {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fd-sort-btn:hover {
+  color: var(--text-normal);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.fd-sort-btn.active {
+  background: var(--interactive-accent);
+  color: #FFFFFF;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.fd-filter-chip {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fd-filter-chip:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.fd-filter-chip.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--background-modifier-border);
+  color: var(--text-normal);
+}
+
+
+
+/* Wishlist Items List */
+.fd-wishlist-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 540px;
+  overflow-y: auto;
+}
+
+.fd-wish-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+
+.fd-wish-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--background-modifier-hover);
+}
+
+.fd-wish-item.bought {
+  background: rgba(16, 185, 129, 0.03);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.fd-wish-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.fd-chk-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fd-wish-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #10B981;
+}
+
+.fd-wish-cat-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.fd-wish-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fd-wish-concept {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-normal);
+  transition: all 0.2s ease;
+}
+
+.concept-bought {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.fd-wish-meta {
+  font-size: 10px;
+}
+
+.fd-status-badge {
+  display: inline-block;
+  font-weight: 600;
+}
+
+.fd-status-badge.in-wheel {
+  color: #10B981;
+}
+
+.fd-status-badge.pending {
+  color: var(--text-muted);
+}
+
+.fd-wish-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fd-wish-amount {
+  font-size: 15px;
+  font-weight: 800;
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+}
+
+.fd-wish-amount.amt-bought {
+  color: #10B981;
+}
+
+/* ─── LEDGER (HISTORIAL DE GASTOS) ────────────────────────────────────────── */
 .fd-ledger-box {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
@@ -554,6 +1103,7 @@
   padding: 4px;
   border-radius: 6px;
   transition: all 0.15s ease;
+  font-size: 14px;
 }
 
 .fd-delete-btn:hover {
@@ -568,12 +1118,12 @@
   font-size: 13px;
 }
 
-/* Quick Expense Modal */
+/* ─── MODALES ─────────────────────────────────────────────────────────────── */
 .fd-modal {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .fd-modal-header {
