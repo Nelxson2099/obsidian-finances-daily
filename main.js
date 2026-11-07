@@ -28,8 +28,8 @@ var DEFAULT_SETTINGS = {
   wishlist: [],
   wishlistSort: "desc",
   // 'desc' (más caro) | 'asc' (más barato) | 'recent' | 'category'
-  wishlistFilter: "all",
-  // 'all' | 'pending' | 'bought'
+  wishlistFilter: "pending",
+  // 'pending' | 'bought'
   savingsBalance: 0,
   savingsGoal: 0,
   savingsHistory: []
@@ -98,8 +98,8 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     if (!this.settings.wishlistSort) {
       this.settings.wishlistSort = "desc";
     }
-    if (!this.settings.wishlistFilter) {
-      this.settings.wishlistFilter = "all";
+    if (!this.settings.wishlistFilter || this.settings.wishlistFilter === "all") {
+      this.settings.wishlistFilter = "pending";
     }
   }
   async saveSettings() {
@@ -226,7 +226,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
       if (this.settings.syncWithNote && this.settings.syncNotePath) {
         await this.syncToMarkdownNote(newTx, cat);
       }
-      new obsidian.Notice(`\u2705 "${item.concept}" comprado: \xA1Sumado a la Rueda de Gastos en ${cat.icon} ${cat.name}!`);
+      new obsidian.Notice(`\u2705 "${item.concept}" comprado: \xA1Pas\xF3 a la cola de gastos general en ${cat.icon} ${cat.name}!`);
     } else {
       this.settings.transactions = this.settings.transactions.filter(
         (t) => t.id !== item.txId && t.wishlistId !== item.id
@@ -235,7 +235,7 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
       item.boughtDate = null;
       item.txId = null;
       await this.saveSettings();
-      new obsidian.Notice(`\u21A9\uFE0F "${item.concept}" desmarcado: Descontado de la Rueda de Gastos`);
+      new obsidian.Notice(`\u21A9\uFE0F "${item.concept}" devuelto a la lista de compras pendientes`);
     }
   }
   async deleteWishlistItem(id) {
@@ -454,7 +454,7 @@ var FinancesDailyView = class extends obsidian.ItemView {
     this.selectedFormCat = CATEGORIES[0].id;
     this.selectedWishCat = CATEGORIES[0].id;
     this.wishlistSort = this.plugin.settings.wishlistSort || "desc";
-    this.wishlistFilter = this.plugin.settings.wishlistFilter || "all";
+    this.wishlistFilter = this.plugin.settings.wishlistFilter && this.plugin.settings.wishlistFilter !== "all" ? this.plugin.settings.wishlistFilter : "pending";
     this.showSavingsHistory = false;
   }
   getViewType() {
@@ -1028,10 +1028,10 @@ var FinancesDailyView = class extends obsidian.ItemView {
     });
     const filterGroup = toolbar.createDiv({ cls: "fd-toolbar-group" });
     filterGroup.createSpan({ cls: "fd-toolbar-label", text: "Ver:" });
-    const currentF = this.wishlistFilter || this.plugin.settings.wishlistFilter || "all";
+    let currentF = this.wishlistFilter || this.plugin.settings.wishlistFilter || "pending";
+    if (currentF === "all") currentF = "pending";
     const filterTabs = [
-      { key: "all", label: `Todos (${wishlist.length})` },
-      { key: "pending", label: `\u23F3 Pendientes (${pendingItems.length})` },
+      { key: "pending", label: `\u23F3 Por Comprar (${pendingItems.length})` },
       { key: "bought", label: `\u2705 Comprados (${boughtItems.length})` }
     ];
     filterTabs.forEach((f) => {
@@ -1053,7 +1053,8 @@ var FinancesDailyView = class extends obsidian.ItemView {
   renderWishlistItems(container) {
     container.empty();
     let list = [...this.plugin.settings.wishlist || []];
-    const f = this.wishlistFilter || this.plugin.settings.wishlistFilter || "all";
+    let f = this.wishlistFilter || this.plugin.settings.wishlistFilter || "pending";
+    if (f === "all") f = "pending";
     if (f === "pending") {
       list = list.filter((w) => !w.bought);
     } else if (f === "bought") {
@@ -1071,7 +1072,11 @@ var FinancesDailyView = class extends obsidian.ItemView {
     }
     if (list.length === 0) {
       const empty = container.createDiv({ cls: "fd-empty-state" });
-      empty.setText("No hay compras deseadas en esta vista. \xA1Agrega tus metas arriba o imp\xF3rtalas con 1 clic!");
+      if (f === "pending") {
+        empty.setText("\u{1F389} \xA1No tienes compras pendientes en tu lista de deseos! Agrega una arriba.");
+      } else {
+        empty.setText("A\xFAn no has pasado compras a la cola de gastos general desde tu lista de deseos.");
+      }
       return;
     }
     list.forEach((item) => {
@@ -1081,19 +1086,24 @@ var FinancesDailyView = class extends obsidian.ItemView {
         cls: `fd-wish-item ${isBought ? "bought" : "pending"}`
       });
       const left = row.createDiv({ cls: "fd-wish-left" });
-      const chkWrap = left.createDiv({ cls: "fd-chk-wrapper" });
-      const chk = chkWrap.createEl("input", {
-        cls: "fd-wish-checkbox",
-        attr: {
-          type: "checkbox",
-          title: isBought ? "Desmarcar para quitar de la Rueda de Gastos" : "Marcar para sumar a la Rueda de Gastos"
-        }
-      });
-      chk.checked = isBought;
-      chk.onchange = async () => {
-        await this.plugin.toggleWishlistItem(item.id);
-        this.render();
-      };
+      if (!isBought) {
+        const chkWrap = left.createDiv({ cls: "fd-chk-wrapper" });
+        const chk = chkWrap.createEl("input", {
+          cls: "fd-wish-checkbox",
+          attr: {
+            type: "checkbox",
+            title: "Marcar como comprado: pasa inmediatamente a la cola de gastos general"
+          }
+        });
+        chk.checked = false;
+        chk.onchange = async () => {
+          await this.plugin.toggleWishlistItem(item.id);
+          this.render();
+        };
+      } else {
+        const iconWrap = left.createDiv({ cls: "fd-chk-wrapper" });
+        iconWrap.createSpan({ text: "\u2705", attr: { style: "font-size: 14px; user-select: none;" } });
+      }
       const badge = left.createDiv({ cls: "fd-wish-cat-badge" });
       badge.style.background = cat.color + "22";
       badge.style.color = cat.color;
@@ -1106,15 +1116,26 @@ var FinancesDailyView = class extends obsidian.ItemView {
       });
       const metaEl = textWrap.createDiv({ cls: "fd-wish-meta" });
       if (isBought) {
-        metaEl.createSpan({ cls: "fd-status-badge in-wheel", text: `\u2713 Sumado a la Rueda (${item.boughtDate || "Comprado"})` });
+        metaEl.createSpan({ cls: "fd-status-badge in-wheel", text: `\u2713 Comprado el ${item.boughtDate || "Recientemente"} (En Cola de Gastos)` });
       } else {
-        metaEl.createSpan({ cls: "fd-status-badge pending", text: "\u23F3 Planeado / Por Comprar" });
+        metaEl.createSpan({ cls: "fd-status-badge pending", text: "\u23F3 Por Comprar / Deseo Activo" });
       }
       const right = row.createDiv({ cls: "fd-wish-right" });
       const amtEl = right.createDiv({
         cls: `fd-wish-amount ${isBought ? "amt-bought" : ""}`,
         text: `${this.plugin.settings.currency}${Number(item.amount).toFixed(2)}`
       });
+      if (isBought) {
+        const restoreBtn = right.createEl("button", {
+          cls: "fd-restore-btn",
+          attr: { title: "Desmarcar y devolver a la lista de compras pendientes" }
+        });
+        restoreBtn.setText("\u21A9\uFE0F Devolver");
+        restoreBtn.onclick = async () => {
+          await this.plugin.toggleWishlistItem(item.id);
+          this.render();
+        };
+      }
       const delBtn = right.createEl("button", {
         cls: "fd-delete-btn",
         attr: { title: "Eliminar este art\xEDculo" }
