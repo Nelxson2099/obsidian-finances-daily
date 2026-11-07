@@ -9,7 +9,7 @@ Author: Nelxson2099
 // src/main.js
 var obsidian = require("obsidian");
 var VIEW_TYPE_FINANCES_DAILY = "finances-daily-wheel-view";
-var USER_LOCALE = (typeof window !== "undefined" && window.localStorage && window.localStorage.getItem("language") || "en").toLowerCase();
+var USER_LOCALE = (typeof window !== "undefined" && (window.moment && typeof window.moment.locale === "function" && window.moment.locale() || navigator && navigator.language || "en")).toLowerCase();
 var IS_ES = USER_LOCALE.startsWith("es");
 var I18N = {
   en: {
