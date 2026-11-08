@@ -153,6 +153,10 @@ var DEFAULT_SETTINGS = {
   // 'desc' (más caro) | 'asc' (más barato) | 'recent' | 'category'
   wishlistFilter: "pending",
   // 'pending' | 'bought'
+  quickExpensePillMode: "full",
+  // 'full' (con nombre) | 'emoji' (solo emojis)
+  wishlistPillMode: "full",
+  // 'full' (con nombre) | 'emoji' (solo emojis)
   savingsBalance: 0,
   savingsGoal: 0,
   savingsHistory: []
@@ -223,6 +227,12 @@ var FinancesDailyPlugin = class extends obsidian.Plugin {
     }
     if (!this.settings.wishlistFilter || this.settings.wishlistFilter === "all") {
       this.settings.wishlistFilter = "pending";
+    }
+    if (!this.settings.quickExpensePillMode) {
+      this.settings.quickExpensePillMode = "full";
+    }
+    if (!this.settings.wishlistPillMode) {
+      this.settings.wishlistPillMode = "full";
     }
   }
   async saveSettings() {
@@ -788,26 +798,72 @@ var FinancesDailyView = class extends obsidian.ItemView {
   // ─── QUICK CAPTURE GASTOS ────────────────────────────────────────────────
   renderQuickCapture(parent) {
     const box = parent.createDiv({ cls: "fd-capture-box" });
-    const title = box.createDiv({ cls: "fd-capture-title" });
+    const header = box.createDiv({ cls: "fd-capture-header" });
+    const title = header.createDiv({ cls: "fd-capture-title" });
     title.setText("\u26A1 Registro R\xE1pido de Gasto");
-    const catSelector = box.createDiv({ cls: "fd-category-selector" });
-    CATEGORIES.forEach((c) => {
-      const isSelected = this.selectedFormCat === c.id;
-      const pill = catSelector.createEl("button", {
-        cls: `fd-cat-pill ${isSelected ? "selected" : ""}`,
-        attr: { type: "button" }
-      });
-      pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
-      pill.style.background = isSelected ? c.color : "var(--background-primary)";
-      const iconSpan = pill.createSpan();
-      iconSpan.setText(c.icon);
-      const nameSpan = pill.createSpan();
-      nameSpan.setText(c.name);
-      pill.onclick = () => {
-        this.selectedFormCat = c.id;
-        this.renderQuickCapturePills(catSelector);
-      };
+    const modeSwitch = header.createDiv({ cls: "fd-pill-mode-switch" });
+    let currentMode = this.plugin.settings.quickExpensePillMode || "full";
+    const fullBtn = modeSwitch.createEl("button", {
+      cls: `fd-pill-mode-btn ${currentMode === "full" ? "active" : ""}`,
+      attr: { type: "button", title: "Mostrar cuadrantes con nombre y emoji (ej: \u{1FA7A} Salud)" },
+      text: "\u{1FA7A} Salud"
     });
+    const emojiBtn = modeSwitch.createEl("button", {
+      cls: `fd-pill-mode-btn ${currentMode === "emoji" ? "active" : ""}`,
+      attr: { type: "button", title: "Mostrar solo emojis (modo compacto)" },
+      text: "\u{1FA7A}"
+    });
+    const catSelector = box.createDiv({ cls: `fd-category-selector ${currentMode === "emoji" ? "emoji-only" : ""}` });
+    const updatePills = () => {
+      catSelector.empty();
+      const mode = this.plugin.settings.quickExpensePillMode || "full";
+      if (mode === "emoji") {
+        catSelector.addClass("emoji-only");
+      } else {
+        catSelector.removeClass("emoji-only");
+      }
+      CATEGORIES.forEach((c) => {
+        const isSelected = this.selectedFormCat === c.id;
+        const pill = catSelector.createEl("button", {
+          cls: `fd-cat-pill ${mode === "emoji" ? "emoji-only" : ""} ${isSelected ? "selected" : ""}`,
+          attr: {
+            type: "button",
+            title: `${c.icon} ${c.name}`
+          }
+        });
+        pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
+        pill.style.background = isSelected ? c.color : "var(--background-primary)";
+        const iconSpan = pill.createSpan({ cls: "fd-pill-icon" });
+        iconSpan.setText(c.icon);
+        if (mode === "full") {
+          const nameSpan = pill.createSpan({ cls: "fd-pill-name" });
+          nameSpan.setText(c.name);
+        }
+        pill.onclick = () => {
+          this.selectedFormCat = c.id;
+          updatePills();
+        };
+      });
+    };
+    fullBtn.onclick = async () => {
+      if (this.plugin.settings.quickExpensePillMode !== "full") {
+        this.plugin.settings.quickExpensePillMode = "full";
+        await this.plugin.saveSettings();
+        fullBtn.addClass("active");
+        emojiBtn.removeClass("active");
+        updatePills();
+      }
+    };
+    emojiBtn.onclick = async () => {
+      if (this.plugin.settings.quickExpensePillMode !== "emoji") {
+        this.plugin.settings.quickExpensePillMode = "emoji";
+        await this.plugin.saveSettings();
+        emojiBtn.addClass("active");
+        fullBtn.removeClass("active");
+        updatePills();
+      }
+    };
+    updatePills();
     const inputsRow = box.createDiv({ cls: "fd-capture-inputs" });
     const amountInput = inputsRow.createEl("input", {
       cls: "fd-input fd-amount-input",
@@ -1055,35 +1111,71 @@ var FinancesDailyView = class extends obsidian.ItemView {
     bBadge.createSpan({ text: "\u2705 En Rueda: " });
     bBadge.createEl("strong", { text: `${this.plugin.settings.currency}${boughtTotal.toFixed(2)} (${boughtItems.length})` });
     const formBox = box.createDiv({ cls: "fd-wishlist-form-box" });
-    formBox.createDiv({ cls: "fd-form-label", text: "\u2728 Agregar nuevo deseo o compra planeada:" });
-    const catSelector = formBox.createDiv({ cls: "fd-category-selector" });
-    CATEGORIES.forEach((c) => {
-      const isSelected = this.selectedWishCat === c.id;
-      const pill = catSelector.createEl("button", {
-        cls: `fd-cat-pill ${isSelected ? "selected" : ""}`,
-        attr: { type: "button" }
-      });
-      pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
-      pill.style.background = isSelected ? c.color : "var(--background-primary)";
-      pill.createSpan({ text: c.icon });
-      pill.createSpan({ text: c.name });
-      pill.onclick = () => {
-        this.selectedWishCat = c.id;
-        const pills = catSelector.querySelectorAll(".fd-cat-pill");
-        pills.forEach((p, idx) => {
-          const catObj = CATEGORIES[idx];
-          if (catObj.id === c.id) {
-            p.addClass("selected");
-            p.style.background = catObj.color;
-            p.style.borderColor = catObj.color;
-          } else {
-            p.removeClass("selected");
-            p.style.background = "var(--background-primary)";
-            p.style.borderColor = "var(--background-modifier-border)";
+    const formHeader = formBox.createDiv({ cls: "fd-wishlist-form-header" });
+    formHeader.createDiv({ cls: "fd-form-label", text: "\u2728 Agregar nuevo deseo o compra planeada:" });
+    const wishModeSwitch = formHeader.createDiv({ cls: "fd-pill-mode-switch" });
+    let currentWishMode = this.plugin.settings.wishlistPillMode || "full";
+    const wishFullBtn = wishModeSwitch.createEl("button", {
+      cls: `fd-pill-mode-btn ${currentWishMode === "full" ? "active" : ""}`,
+      attr: { type: "button", title: "Mostrar cuadrantes con nombre y emoji (ej: \u{1FA7A} Salud)" },
+      text: "\u{1FA7A} Salud"
+    });
+    const wishEmojiBtn = wishModeSwitch.createEl("button", {
+      cls: `fd-pill-mode-btn ${currentWishMode === "emoji" ? "active" : ""}`,
+      attr: { type: "button", title: "Mostrar solo emojis (modo compacto)" },
+      text: "\u{1FA7A}"
+    });
+    const catSelector = formBox.createDiv({ cls: `fd-category-selector ${currentWishMode === "emoji" ? "emoji-only" : ""}` });
+    const updateWishPills = () => {
+      catSelector.empty();
+      const mode = this.plugin.settings.wishlistPillMode || "full";
+      if (mode === "emoji") {
+        catSelector.addClass("emoji-only");
+      } else {
+        catSelector.removeClass("emoji-only");
+      }
+      CATEGORIES.forEach((c) => {
+        const isSelected = this.selectedWishCat === c.id;
+        const pill = catSelector.createEl("button", {
+          cls: `fd-cat-pill ${mode === "emoji" ? "emoji-only" : ""} ${isSelected ? "selected" : ""}`,
+          attr: {
+            type: "button",
+            title: `${c.icon} ${c.name}`
           }
         });
-      };
-    });
+        pill.style.borderColor = isSelected ? c.color : "var(--background-modifier-border)";
+        pill.style.background = isSelected ? c.color : "var(--background-primary)";
+        const iconSpan = pill.createSpan({ cls: "fd-pill-icon" });
+        iconSpan.setText(c.icon);
+        if (mode === "full") {
+          const nameSpan = pill.createSpan({ cls: "fd-pill-name" });
+          nameSpan.setText(c.name);
+        }
+        pill.onclick = () => {
+          this.selectedWishCat = c.id;
+          updateWishPills();
+        };
+      });
+    };
+    wishFullBtn.onclick = async () => {
+      if (this.plugin.settings.wishlistPillMode !== "full") {
+        this.plugin.settings.wishlistPillMode = "full";
+        await this.plugin.saveSettings();
+        wishFullBtn.addClass("active");
+        wishEmojiBtn.removeClass("active");
+        updateWishPills();
+      }
+    };
+    wishEmojiBtn.onclick = async () => {
+      if (this.plugin.settings.wishlistPillMode !== "emoji") {
+        this.plugin.settings.wishlistPillMode = "emoji";
+        await this.plugin.saveSettings();
+        wishEmojiBtn.addClass("active");
+        wishFullBtn.removeClass("active");
+        updateWishPills();
+      }
+    };
+    updateWishPills();
     const inputsRow = formBox.createDiv({ cls: "fd-wishlist-inputs" });
     const amountInput = inputsRow.createEl("input", {
       cls: "fd-input fd-amount-input",
@@ -1149,6 +1241,37 @@ var FinancesDailyView = class extends obsidian.ItemView {
         this.render();
       };
     });
+    const searchGroup = toolbar.createDiv({ cls: "fd-toolbar-group fd-wishlist-search-wrap" });
+    searchGroup.createSpan({ cls: "fd-wishlist-search-icon", text: "\u{1F50D}" });
+    const searchInput = searchGroup.createEl("input", {
+      cls: "fd-wishlist-search-input",
+      attr: {
+        type: "text",
+        placeholder: "Buscar deseo o compra...",
+        value: this.wishlistSearchQuery || ""
+      }
+    });
+    const clearSearchBtn = searchGroup.createEl("button", {
+      cls: `fd-wishlist-search-clear ${this.wishlistSearchQuery ? "visible" : ""}`,
+      attr: { type: "button", title: "Limpiar b\xFAsqueda" },
+      text: "\u2715"
+    });
+    searchInput.oninput = (e) => {
+      this.wishlistSearchQuery = e.target.value.trim().toLowerCase();
+      if (this.wishlistSearchQuery) {
+        clearSearchBtn.addClass("visible");
+      } else {
+        clearSearchBtn.removeClass("visible");
+      }
+      this.renderWishlistItems(itemsContainer);
+    };
+    clearSearchBtn.onclick = () => {
+      this.wishlistSearchQuery = "";
+      searchInput.value = "";
+      clearSearchBtn.removeClass("visible");
+      this.renderWishlistItems(itemsContainer);
+      searchInput.focus();
+    };
     const filterGroup = toolbar.createDiv({ cls: "fd-toolbar-group" });
     filterGroup.createSpan({ cls: "fd-toolbar-label", text: "Ver:" });
     let currentF = this.wishlistFilter || this.plugin.settings.wishlistFilter || "pending";
@@ -1193,9 +1316,20 @@ var FinancesDailyView = class extends obsidian.ItemView {
     } else if (sortMode === "category") {
       list.sort((a, b) => (a.categoryName || "").localeCompare(b.categoryName || ""));
     }
+    if (this.wishlistSearchQuery) {
+      const q = this.wishlistSearchQuery.toLowerCase();
+      list = list.filter((w) => {
+        const conc = (w.concept || "").toLowerCase();
+        const cat = CATEGORIES.find((c) => c.id === w.categoryId);
+        const catName = (cat ? cat.name : w.categoryName || "").toLowerCase();
+        return conc.includes(q) || catName.includes(q);
+      });
+    }
     if (list.length === 0) {
       const empty = container.createDiv({ cls: "fd-empty-state" });
-      if (f === "pending") {
+      if (this.wishlistSearchQuery) {
+        empty.setText(`\u{1F50D} No se encontraron compras planificadas que coincidan con "${this.wishlistSearchQuery}".`);
+      } else if (f === "pending") {
         empty.setText("\u{1F389} \xA1No tienes compras pendientes en tu lista de deseos! Agrega una arriba.");
       } else {
         empty.setText("A\xFAn no has pasado compras a la cola de gastos general desde tu lista de deseos.");
